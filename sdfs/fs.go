@@ -91,5 +91,12 @@ func (f *FS) AddFile(path string, data []byte) error {
 // GetFile gets file from the local disk which has the given path in SDFS
 // namespace
 func (f *FS) GetFile(path string) (*File, error) {
-	return nil, nil
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	file, ok := f.PathDB[path]
+	if !ok {
+		return nil, fmt.Errorf("File not found at path: %q", path)
+	}
+
+	return file, nil
 }

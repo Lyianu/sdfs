@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 
 	"github.com/Lyianu/sdfs/sdfs"
 )
@@ -22,6 +21,7 @@ func NewRouter() *Router {
 		routes: make(map[string]HandleFunc),
 	}
 	r.addRoute(http.MethodPost, "/api/upload", r.Upload)
+	r.addRoute(http.MethodGet, "/api/download", r.Download)
 	return r
 }
 
@@ -39,7 +39,7 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		handler(w, req)
 	} else {
 		w.Header().Add("Content-Type", "text/plain")
-		w.Header().Add("Code", strconv.Itoa(http.StatusNotFound))
+		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "NOT FOUND")
 	}
 }
@@ -49,14 +49,14 @@ func (r *Router) Upload(w http.ResponseWriter, req *http.Request) {
 	path := req.URL.Query().Get("path")
 	if path == "" {
 		w.Header().Add("Content-Type", "text/plain")
-		w.Header().Add("Code", strconv.Itoa(http.StatusBadRequest))
+		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "BAD REQUEST")
 		return
 	}
 	b, err := io.ReadAll(req.Body)
 	if err != nil {
 		w.Header().Add("Content-Type", "text/plain")
-		w.Header().Add("Code", strconv.Itoa(http.StatusBadRequest))
+		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "FAILED TO READ BODY")
 		return
 	}
@@ -64,12 +64,32 @@ func (r *Router) Upload(w http.ResponseWriter, req *http.Request) {
 	err = sdfs.Fs.AddFile(path, b)
 	if err != nil {
 		w.Header().Add("Content-Type", "text/plain")
-		w.Header().Add("Code", strconv.Itoa(http.StatusInternalServerError))
+		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "SDFS returned error: %q", err)
 		return
 	}
 
 	w.Header().Add("Content-Type", "text/plain")
-	w.Header().Add("Code", strconv.Itoa(http.StatusOK))
+	w.WriteHeader(http.StatusAccepted)
 	fmt.Fprintf(w, "Success")
+}
+
+// Download handles file download requests
+func (r *Router) Download(w http.ResponseWriter, req *http.Request) {
+	path := req.URL.Query().Get("path")
+	w.Header().Add("Content-Type", "text/plain")
+	if path == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "BAD REQUEST")
+	}
+	file, err := sdfs.Fs.GetFile(path)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "SDFS returned error: %q", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/octet-stream")
+	f, err := file.Open()
+	io.Copy(w, f)
+	file.Close()
 }
