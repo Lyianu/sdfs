@@ -2,7 +2,11 @@ package router
 
 import (
 	"fmt"
+	"io"
 	"net/http"
+	"strconv"
+
+	"github.com/Lyianu/sdfs/sdfs"
 )
 
 type HandleFunc func(http.ResponseWriter, *http.Request)
@@ -35,12 +39,37 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		handler(w, req)
 	} else {
 		w.Header().Add("Content-Type", "text/plain")
-		w.Header().Add("Code", "404")
-		fmt.Fprintf(w, "404 NOT FOUND")
+		w.Header().Add("Code", strconv.Itoa(http.StatusNotFound))
+		fmt.Fprintf(w, "NOT FOUND")
 	}
 }
 
 // Upload handles file upload requests
 func (r *Router) Upload(w http.ResponseWriter, req *http.Request) {
+	path := req.URL.Query().Get("path")
+	if path == "" {
+		w.Header().Add("Content-Type", "text/plain")
+		w.Header().Add("Code", strconv.Itoa(http.StatusBadRequest))
+		fmt.Fprintf(w, "BAD REQUEST")
+		return
+	}
+	b, err := io.ReadAll(req.Body)
+	if err != nil {
+		w.Header().Add("Content-Type", "text/plain")
+		w.Header().Add("Code", strconv.Itoa(http.StatusBadRequest))
+		fmt.Fprintf(w, "FAILED TO READ BODY")
+		return
+	}
+	defer req.Body.Close()
+	err = sdfs.Fs.AddFile(path, b)
+	if err != nil {
+		w.Header().Add("Content-Type", "text/plain")
+		w.Header().Add("Code", strconv.Itoa(http.StatusInternalServerError))
+		fmt.Fprintf(w, "SDFS returned error: %q", err)
+		return
+	}
 
+	w.Header().Add("Content-Type", "text/plain")
+	w.Header().Add("Code", strconv.Itoa(http.StatusOK))
+	fmt.Fprintf(w, "Success")
 }

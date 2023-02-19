@@ -18,6 +18,12 @@ type FS struct {
 	mu sync.Mutex
 }
 
+var Fs *FS
+
+func init() {
+	Fs = NewFS()
+}
+
 func NewFS() *FS {
 	f := &FS{
 		PathDB:     make(map[string]*File),
@@ -80,6 +86,6 @@ func (f *FS) AddFile(path string, data []byte) error {
 
 // GetFile gets file from the local disk which has the given path in SDFS
 // namespace
-func (f *FS) GetFile(path string) (*os.File, error) {
+func (f *FS) GetFile(path string) (*File, error) {
 	return nil, nil
 }
