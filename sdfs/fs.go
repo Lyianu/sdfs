@@ -35,13 +35,7 @@ func NewFS() *FS {
 // AddFile adds file to the FS, it first stores the data in the local disk
 // after that it adds an entry to the FS's db
 func (f *FS) AddFile(path string, data []byte) error {
-	fmt.Printf("Trying to add file %q\n", path)
-	fmt.Printf("Current Structure:\n")
-	for key, _ := range f.PathDB {
-		fmt.Printf("%s\n", key)
-	}
 	c, err := checksum.SHA256sumReader(bytes.NewReader(data))
-	fmt.Println(data, c)
 
 	if err != nil {
 		return err
