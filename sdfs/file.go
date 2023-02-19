@@ -10,9 +10,9 @@ import (
 // File object if they have the same checksum, in this case semaphores
 // are needed
 type File struct {
-	Checksum         int32
+	Checksum         string
 	LocalPath        string
-	FSPath           string
+	FSPath           []string
 	SemaphoreOpen    uint32
 	SemaphoreReplica uint32
 
