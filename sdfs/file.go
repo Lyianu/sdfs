@@ -12,6 +12,7 @@ import (
 type File struct {
 	Checksum         int32
 	LocalPath        string
+	FSPath           string
 	SemaphoreOpen    uint32
 	SemaphoreReplica uint32
 
