@@ -35,7 +35,13 @@ func NewFS() *FS {
 // AddFile adds file to the FS, it first stores the data in the local disk
 // after that it adds an entry to the FS's db
 func (f *FS) AddFile(path string, data []byte) error {
+	fmt.Printf("Trying to add file %q\n", path)
+	fmt.Printf("Current Structure:\n")
+	for key, _ := range f.PathDB {
+		fmt.Printf("%s\n", key)
+	}
 	c, err := checksum.SHA256sumReader(bytes.NewReader(data))
+	fmt.Println(data, c)
 
 	if err != nil {
 		return err
@@ -57,14 +63,16 @@ func (f *FS) AddFile(path string, data []byte) error {
 		for _, p := range fp {
 			// if already exists
 			if p == path {
+				f.mu.Unlock()
 				return nil
 			}
 		}
 		// if file exists at another path, create a replica at the given path
 		file.mu.Lock()
-		defer file.mu.Unlock()
 		file.FSPath = append(file.FSPath, path)
 		file.SemaphoreReplica++
+		file.mu.Unlock()
+		f.mu.Unlock()
 
 		return nil
 	}
@@ -80,6 +88,8 @@ func (f *FS) AddFile(path string, data []byte) error {
 	file.LocalPath = c
 	file.SemaphoreOpen = 0
 	file.SemaphoreReplica = 1
+	f.PathDB[path] = file
+	f.ChecksumDB[c] = file
 
 	return nil
 }
