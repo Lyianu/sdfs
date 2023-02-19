@@ -12,6 +12,7 @@ type Router struct {
 	routes map[string]HandleFunc
 }
 
+// NewRouter returns a router with sdfs routes
 func NewRouter() *Router {
 	r := &Router{
 		routes: make(map[string]HandleFunc),
@@ -20,10 +21,13 @@ func NewRouter() *Router {
 	return r
 }
 
+// addRoute adds route to the router
 func (r *Router) addRoute(method, path string, handler HandleFunc) {
 	r.routes[method+path] = handler
 }
 
+// ServeHTTP handles HTTP requests and passes them to the corresponding router
+// middleware could be inserted here if needed
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	path := req.URL.Path
 	method := req.Method
@@ -36,6 +40,7 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// Upload handles file upload requests
 func (r *Router) Upload(w http.ResponseWriter, req *http.Request) {
 
 }
