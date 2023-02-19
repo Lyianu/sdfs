@@ -3,6 +3,8 @@ package sdfs
 import (
 	"os"
 	"sync"
+
+	"github.com/Lyianu/sdfs/pkg/settings"
 )
 
 // File represents a file in the local SDFS namespace
@@ -26,7 +28,7 @@ func (f *File) Open() (*os.File, error) {
 	defer f.mu.Unlock()
 	f.SemaphoreOpen++
 	var err error
-	f.File, err = os.Open(f.LocalPath)
+	f.File, err = os.Open(settings.DataPathPrefix + f.LocalPath)
 	return f.File, err
 }
 

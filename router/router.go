@@ -88,8 +88,15 @@ func (r *Router) Download(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprintf(w, "SDFS returned error: %q", err)
 		return
 	}
+
 	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("filename=\"%s\"", file.Checksum))
 	f, err := file.Open()
 	io.Copy(w, f)
 	file.Close()
+}
+
+// Delete handles file deletion requests
+func (r *Router) Delete(w http.ResponseWriter, req *http.Request) {
+
 }
