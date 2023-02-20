@@ -64,6 +64,7 @@ func (f *FS) AddFile(path string, data []byte) error {
 		// if file exists at another path, create a replica at the given path
 		file.mu.Lock()
 		file.FSPath = append(file.FSPath, path)
+		f.PathDB[path] = file
 		file.SemaphoreReplica++
 		file.mu.Unlock()
 		f.mu.Unlock()
@@ -120,7 +121,7 @@ func (f *FS) DeleteFile(path string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if file.SemaphoreReplica == 1 {
-		err := os.Remove(settings.DataPathPrefix+file.LocalPath)
+		err := os.Remove(settings.DataPathPrefix + file.LocalPath)
 		delete(f.PathDB, file.FSPath[0])
 		delete(f.ChecksumDB, file.Checksum)
 		return err
