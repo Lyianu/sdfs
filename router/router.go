@@ -22,6 +22,7 @@ func NewRouter() *Router {
 	}
 	r.addRoute(http.MethodPost, "/api/upload", r.Upload)
 	r.addRoute(http.MethodGet, "/api/download", r.Download)
+	r.addRoute(http.MethodGet, "/api/delete", r.Delete)
 	return r
 }
 
@@ -98,5 +99,19 @@ func (r *Router) Download(w http.ResponseWriter, req *http.Request) {
 
 // Delete handles file deletion requests
 func (r *Router) Delete(w http.ResponseWriter, req *http.Request) {
-
+	path := req.URL.Query().Get("path")
+	w.Header().Add("Content-Type", "text/plain")
+	if path == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "BAD REQUEST")
+		return
+	}
+	err := sdfs.Fs.DeleteFile(path)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "SDFS returned error: %q", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "Success")
 }

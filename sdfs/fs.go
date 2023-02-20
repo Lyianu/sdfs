@@ -45,7 +45,7 @@ func (f *FS) AddFile(path string, data []byte) error {
 	if file, ok := f.PathDB[path]; ok {
 		if file.Checksum != c {
 			f.mu.Unlock()
-			return fmt.Errorf("A file with different checksum exists at %s", path)
+			return fmt.Errorf("a file with different checksum exists at %s", path)
 		}
 	}
 	// if there is not, check if there is a same file in the SDFS namespace,
@@ -95,7 +95,7 @@ func (f *FS) GetFile(path string) (*File, error) {
 	defer f.mu.Unlock()
 	file, ok := f.PathDB[path]
 	if !ok {
-		return nil, fmt.Errorf("File not found at path: %q", path)
+		return nil, fmt.Errorf("file not found at path: %q", path)
 	}
 
 	return file, nil
@@ -120,7 +120,7 @@ func (f *FS) DeleteFile(path string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if file.SemaphoreReplica == 1 {
-		err := os.Remove(file.LocalPath)
+		err := os.Remove(settings.DataPathPrefix+file.LocalPath)
 		delete(f.PathDB, file.FSPath[0])
 		delete(f.ChecksumDB, file.Checksum)
 		return err
