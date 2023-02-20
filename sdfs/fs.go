@@ -89,7 +89,7 @@ func (f *FS) AddFile(path string, data []byte) error {
 }
 
 // GetFile gets file from the local disk which has the given path in SDFS
-// namespace
+// namespace, it returns a file only when error is nil
 func (f *FS) GetFile(path string) (*File, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -99,4 +99,40 @@ func (f *FS) GetFile(path string) (*File, error) {
 	}
 
 	return file, nil
+}
+
+// DeleteFile deletes file of a given path, it remove the file logically
+// in SDFS namespace but might not delete the actual physical file stored
+// on the disk
+func (f *FS) DeleteFile(path string) error {
+	file, err := f.GetFile(path)
+	if err != nil {
+		return err
+	}
+	// check if any other subroutine is using the file
+	s := file.mu.TryLock()
+	if s {
+		defer file.mu.Unlock()
+	} else {
+		return fmt.Errorf("File not available")
+	}
+	// if there is no other replicas, delete the file locally & logically
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if file.SemaphoreReplica == 1 {
+		err := os.Remove(file.LocalPath)
+		delete(f.PathDB, file.FSPath[0])
+		delete(f.ChecksumDB, file.Checksum)
+		return err
+	}
+	// if there is a replica, delete the file logically and reduce SemaphoreReplica
+	delete(f.PathDB, path)
+	for k, p := range file.FSPath {
+		if p == path {
+			file.FSPath = append(file.FSPath[:k], file.FSPath[k+1:]...)
+			break
+		}
+	}
+	file.SemaphoreReplica--
+	return nil
 }
