@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/Lyianu/sdfs/sdfs"
 )
@@ -76,6 +77,7 @@ func (r *Router) Upload(w http.ResponseWriter, req *http.Request) {
 }
 
 // Download handles file download requests
+// Note that files in the FS can't have blank names and / in their names
 func (r *Router) Download(w http.ResponseWriter, req *http.Request) {
 	path := req.URL.Query().Get("path")
 	w.Header().Add("Content-Type", "text/plain")
@@ -91,7 +93,8 @@ func (r *Router) Download(w http.ResponseWriter, req *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("filename=\"%s\"", file.Checksum))
+	filename := path[strings.LastIndex(path, "/")+1:]
+	w.Header().Set("Content-Disposition", fmt.Sprintf("filename=\"%s\"", filename))
 	f, err := file.Open()
 	io.Copy(w, f)
 	file.Close()
