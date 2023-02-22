@@ -202,7 +202,7 @@ func (f *FS) AddDir(path string) error {
 		}
 		dir.mu.Lock()
 		currentPath += part
-		if i == len(parts)-1 {
+		if i == len(parts) {
 			break
 		}
 		currentPath += "/"
@@ -259,19 +259,24 @@ func (f *FS) DeleteFile(path string) error {
 	// if there is no other replicas, delete the file locally & logically
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	dir, _ := f.GetDir(path)
 	if file.SemaphoreReplica == 1 {
 		err := os.Remove(settings.DataPathPrefix + file.LocalPath)
-		delete(f.PathDB, file.FSPath[0])
+		delete(dir.Files, file.FSPath[0].FileName)
 		delete(f.ChecksumDB, file.Checksum)
 		return err
 	}
 	// if there is a replica, delete the file logically and reduce SemaphoreReplica
-	delete(f.PathDB, path)
-	for k, p := range file.FSPath {
+	delete(dir.Files, ParseFileName(path))
+	for k, p := range file.Paths() {
 		if p == path {
 			file.FSPath = append(file.FSPath[:k], file.FSPath[k+1:]...)
 			break
 		}
+	}
+	for dir != f.Roots[0] {
+		dir.Size -= file.Size
+		dir = dir.Parent
 	}
 	file.SemaphoreReplica--
 	return nil

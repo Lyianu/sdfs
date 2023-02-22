@@ -31,7 +31,7 @@ type Location struct {
 }
 
 // Paths returns a slice that contains every path the file corresponds
-func (f File) Paths() (paths []string) {
+func (f *File) Paths() (paths []string) {
 	for _, fsp := range f.FSPath {
 		paths = append(paths, fsp.Parent.FullPath+fsp.FileName)
 	}
