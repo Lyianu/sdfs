@@ -12,9 +12,14 @@ import (
 // File object if they have the same checksum, in this case semaphores
 // are needed
 type File struct {
-	Checksum         string
-	LocalPath        string
-	FSPath           []string
+	Checksum  string
+	LocalPath string
+	// FSPath contains logical position of the file
+	// To get full path: f.FSPath.Parent.FullPath+f.FSPath.FileName
+	FSPath []struct {
+		Parent   *Directory
+		FileName string
+	}
 	SemaphoreOpen    uint32
 	SemaphoreReplica uint32
 
@@ -22,11 +27,19 @@ type File struct {
 	mu   sync.Mutex
 }
 
+// Paths returns a slice that contains every path the file corresponds
+func (f File) Paths() (paths []string) {
+	for _, fsp := range f.FSPath {
+		paths = append(paths, fsp.Parent.FullPath+fsp.FileName)
+	}
+	return
+}
+
 // NewFile creates a new file with given parameters
 func NewFile(checksum, fsPath, localPath string) *File {
 	f := new(File)
 	f.Checksum = checksum
-	f.FSPath = []string{fsPath}
+	//f.FSPath = []string{fsPath}
 	f.LocalPath = checksum
 	f.SemaphoreOpen = 0
 	f.SemaphoreReplica = 1
@@ -45,6 +58,7 @@ func (f *File) Open() (*os.File, error) {
 
 // Close closes a SDFS file instance, when the file is not needed, it closes
 // the local file
+// When a open file has been Closed twice, the method will not handle error
 func (f *File) Close() error {
 	f.mu.Lock()
 	defer f.mu.Unlock()

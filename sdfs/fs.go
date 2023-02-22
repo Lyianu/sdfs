@@ -18,6 +18,13 @@ type FS struct {
 	mu sync.Mutex
 }
 
+type Directory struct {
+	SubDirs  map[string]*Directory
+	Files    map[string]*File
+	FullPath string
+	Parent   *Directory
+}
+
 var Fs *FS
 
 func init() {
