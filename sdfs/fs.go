@@ -77,12 +77,7 @@ func (f *FS) AddFile(path string, data []byte) error {
 	if err != nil {
 		return err
 	}
-	file := new(File)
-	file.Checksum = c
-	file.FSPath = []string{path}
-	file.LocalPath = c
-	file.SemaphoreOpen = 0
-	file.SemaphoreReplica = 1
+	file := NewFile(c, path, c)
 	f.PathDB[path] = file
 	f.ChecksumDB[c] = file
 

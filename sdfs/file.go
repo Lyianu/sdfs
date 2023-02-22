@@ -22,6 +22,17 @@ type File struct {
 	mu   sync.Mutex
 }
 
+// NewFile creates a new file with given parameters
+func NewFile(checksum, fsPath, localPath string) *File {
+	f := new(File)
+	f.Checksum = checksum
+	f.FSPath = []string{fsPath}
+	f.LocalPath = checksum
+	f.SemaphoreOpen = 0
+	f.SemaphoreReplica = 1
+	return f
+}
+
 // Open opens a SDFS file with os.Open and returns it as *os.File
 func (f *File) Open() (*os.File, error) {
 	f.mu.Lock()
