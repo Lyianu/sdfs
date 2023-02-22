@@ -16,15 +16,18 @@ type File struct {
 	LocalPath string
 	// FSPath contains logical position of the file
 	// To get full path: f.FSPath.Parent.FullPath+f.FSPath.FileName
-	FSPath []struct {
-		Parent   *Directory
-		FileName string
-	}
+	FSPath           []Location
 	SemaphoreOpen    uint32
 	SemaphoreReplica uint32
+	Size             uint64
 
 	File *os.File
 	mu   sync.Mutex
+}
+
+type Location struct {
+	Parent   *Directory
+	FileName string
 }
 
 // Paths returns a slice that contains every path the file corresponds
@@ -36,13 +39,17 @@ func (f File) Paths() (paths []string) {
 }
 
 // NewFile creates a new file with given parameters
-func NewFile(checksum, fsPath, localPath string) *File {
+func NewFile(name, checksum, localPath string, fileSize uint64, parent *Directory) *File {
 	f := new(File)
 	f.Checksum = checksum
-	//f.FSPath = []string{fsPath}
+	f.FSPath = append(f.FSPath, Location{
+		Parent:   parent,
+		FileName: name,
+	})
 	f.LocalPath = checksum
 	f.SemaphoreOpen = 0
 	f.SemaphoreReplica = 1
+	f.Size = fileSize
 	return f
 }
 
