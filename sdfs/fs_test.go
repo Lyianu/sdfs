@@ -39,3 +39,20 @@ func TestFsGetDir(t *testing.T) {
 		t.Errorf("dir.FullPath not correct, want: %q, have: %q", "/foo/bar/", dir.FullPath)
 	}
 }
+
+func TestFsAddFile(t *testing.T) {
+	fs := NewFS()
+	fs.AddFile("/foo/bar", []byte("foobar"))
+	foo, err := fs.GetDir("/foo")
+	if err != nil {
+		t.Fatalf("Parent directory not exist")
+	}
+	if bar, ok := foo.Files["bar"]; ok {
+		if len(bar.FSPath) == 1 {
+			if bar.FSPath[0].FileName == "bar" && bar.FSPath[0].Parent == foo && bar.Size == uint64(len([]byte("foobar"))) {
+				return
+			}
+		}
+		t.Errorf("File metadata corrupted")
+	}
+}

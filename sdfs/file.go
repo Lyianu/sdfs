@@ -15,7 +15,6 @@ type File struct {
 	Checksum  string
 	LocalPath string
 	// FSPath contains logical position of the file
-	// To get full path: f.FSPath.Parent.FullPath+f.FSPath.FileName
 	FSPath           []Location
 	SemaphoreOpen    uint32
 	SemaphoreReplica uint32

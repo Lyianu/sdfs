@@ -76,14 +76,13 @@ func (f *FS) AddFile(path string, data []byte) error {
 	dir, _ := f.GetFileParent(path)
 	fname := ParseFileName(path)
 
-	f.mu.Lock()
 	// first check if there is a different file at the given path
 	if file, err := f.GetFile(path); err == nil {
 		if file.Checksum != c {
-			f.mu.Unlock()
 			return fmt.Errorf("a file with different checksum exists at %s", path)
 		}
 	}
+	f.mu.Lock()
 	// if there is not, check if there is a same file in the SDFS namespace,
 	// but with a different path
 	if file, ok := f.ChecksumDB[c]; ok {
@@ -98,7 +97,6 @@ func (f *FS) AddFile(path string, data []byte) error {
 			}
 		}
 		// if file exists at another path, create a replica at the given path
-		file.mu.Lock()
 		file.FSPath = append(file.FSPath, Location{
 			Parent:   dir,
 			FileName: fname,
