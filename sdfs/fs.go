@@ -122,6 +122,7 @@ func (f *FS) AddFile(path string, data []byte) error {
 		dir.Size += file.Size
 		dir = dir.Parent
 	}
+	dir.Size += file.Size
 
 	return nil
 }
@@ -180,7 +181,7 @@ func (f *FS) GetFile(path string) (*File, error) {
 		dir.mu.Unlock()
 		dir = dir.SubDirs[part]
 	}
-	if file, ok := dir.Files[parts[len(parts)-1]]; !ok {
+	if file, ok := dir.Files[ParseFileName(path)]; !ok {
 		return nil, errors.New("file not exist")
 	} else {
 		return file, nil

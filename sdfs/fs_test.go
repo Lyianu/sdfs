@@ -40,9 +40,14 @@ func TestFsGetDir(t *testing.T) {
 	}
 }
 
+// Local Directory Mode tests might fail here
+// test from main directory to get correct result
 func TestFsAddFile(t *testing.T) {
 	fs := NewFS()
-	fs.AddFile("/foo/bar", []byte("foobar"))
+	err := fs.AddFile("/foo/bar", []byte("foobar"))
+	if err != nil {
+		t.Fatalf("Got error when add file: %q", err)
+	}
 	foo, err := fs.GetDir("/foo")
 	if err != nil {
 		t.Fatalf("Parent directory not exist")
@@ -52,7 +57,35 @@ func TestFsAddFile(t *testing.T) {
 			if bar.FSPath[0].FileName == "bar" && bar.FSPath[0].Parent == foo && bar.Size == uint64(len([]byte("foobar"))) {
 				return
 			}
+		} else {
+			t.Errorf("File metadata corrupted")
 		}
-		t.Errorf("File metadata corrupted")
+	} else {
+		t.Errorf("file not exist")
+		t.Errorf("/foo structure: %+v", foo)
+	}
+}
+
+// Local Directory Mode tests might fail here
+// test from main directory to get correct result
+func TestFsGetFile(t *testing.T) {
+	fs := NewFS()
+	fs.AddFile("/foo/bar.go", []byte("foobar"))
+	foo, err := fs.GetDir("/foo")
+	if err != nil {
+		t.Fatalf("Parent directory not exist")
+	}
+	if bar, err := fs.GetFile("/foo/bar.go"); err == nil {
+		if len(bar.FSPath) == 1 {
+			if bar.FSPath[0].FileName == "bar.go" && bar.FSPath[0].Parent == foo && bar.Size == uint64(len([]byte("foobar"))) {
+				return
+			}
+		} else {
+			t.Errorf("File metadata corrupted")
+
+		}
+	} else {
+		t.Errorf("File not found in /foo, got error of %q", err)
+		t.Errorf("/foo structure: %+v", foo)
 	}
 }
