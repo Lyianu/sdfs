@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
+	"sync"
+	"time"
 
 	"github.com/Lyianu/sdfs/sdfs"
 )
@@ -14,6 +15,45 @@ type HandleFunc func(http.ResponseWriter, *http.Request)
 // Router communicates with master and client
 type Router struct {
 	routes map[string]HandleFunc
+
+	downloads      map[string]*download
+	downloadsQueue []*download
+	mu             sync.Mutex
+}
+
+type download struct {
+	ID       string
+	File     *sdfs.File
+	FileName string
+
+	ExpireTime    time.Time
+	DownloadCount uint
+	mu            sync.Mutex
+}
+
+// UpdateQueue performs an update to the downloadsQueue
+// it removes expired links
+func (r *Router) UpdateQueue() {
+	t := time.Now()
+	r.mu.Lock()
+	for index, download := range r.downloadsQueue {
+		download.mu.Lock()
+		if download.DownloadCount == 0 {
+			if t.After(download.ExpireTime) {
+				key := download.ID
+				delete(r.downloads, key)
+				r.downloadsQueue = append(r.downloadsQueue[:index], r.downloadsQueue[index+1:]...)
+			}
+		}
+		download.mu.Unlock()
+	}
+	r.mu.Unlock()
+}
+
+// RequestDownload finds the desired file and add it to the downloads,
+// if succeed, it returns a ID for download
+func (r *Router) RequestDownload(path string) (string, error) {
+
 }
 
 // NewRouter returns a router with sdfs routes
@@ -77,25 +117,38 @@ func (r *Router) Upload(w http.ResponseWriter, req *http.Request) {
 }
 
 // Download handles file download requests
-// Note that files in the FS can't have blank names and / in their names
 func (r *Router) Download(w http.ResponseWriter, req *http.Request) {
-	path := req.URL.Query().Get("path")
+	id := req.URL.Query().Get("id")
 	w.Header().Add("Content-Type", "text/plain")
-	if path == "" {
+	if id == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "BAD REQUEST")
+		return
 	}
-	file, err := sdfs.Fs.GetFile(path)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "SDFS returned error: %q", err)
+	r.mu.Lock()
+	download, ok := r.downloads[id]
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "NOT FOUND")
 		return
 	}
 
+	download.mu.Lock()
+	download.DownloadCount++
+	download.mu.Unlock()
+	file := download.File
+
+	r.mu.Unlock()
+
 	w.Header().Set("Content-Type", "application/octet-stream")
-	filename := path[strings.LastIndex(path, "/")+1:]
+	filename := file.FSPath
 	w.Header().Set("Content-Disposition", fmt.Sprintf("filename=\"%s\"", filename))
 	f, err := file.Open()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "INTERNAL SERVER ERROR")
+		return
+	}
 	io.Copy(w, f)
 	file.Close()
 }
