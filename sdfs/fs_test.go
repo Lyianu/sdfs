@@ -1,6 +1,8 @@
 package sdfs
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestFsAddDir(t *testing.T) {
 	fs := NewFS()
@@ -88,4 +90,19 @@ func TestFsGetFile(t *testing.T) {
 		t.Errorf("File not found in /foo, got error of %q", err)
 		t.Errorf("/foo structure: %+v", foo)
 	}
+}
+
+// Local Directory Mode tests might fail here
+// test from main directory to get correct result
+func TestFsDeleteFile(t *testing.T) {
+	fs := NewFS()
+	fs.AddFile("/foo/bar.go", []byte("foobar"))
+	fs.DeleteFile("/foo/bar.go")
+	if _, err := fs.GetFile("/foo/bar.go"); err != nil {
+		if err.Error() == "file not exist" {
+			return
+		}
+		t.Fatalf("want file not exist error, have %q", err)
+	}
+	t.Errorf("want file not exist error, have nil")
 }
