@@ -31,6 +31,11 @@ type download struct {
 	mu            sync.Mutex
 }
 
+func NewDownload(file *sdfs.File) *download {
+	d := new(download)
+	
+}
+
 // UpdateQueue performs an update to the downloadsQueue
 // it removes expired links
 func (r *Router) UpdateQueue() {
@@ -53,6 +58,10 @@ func (r *Router) UpdateQueue() {
 // RequestDownload finds the desired file and add it to the downloads,
 // if succeed, it returns a ID for download
 func (r *Router) RequestDownload(path string) (string, error) {
+	file, err := sdfs.Fs.GetFile(path)
+	if err != nil {
+		return "", fmt.Errorf("SDFS returned error: %q", err)
+	}
 
 }
 
