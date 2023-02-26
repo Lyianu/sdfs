@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/Lyianu/sdfs/sdfs"
 )
@@ -19,50 +18,6 @@ type Router struct {
 	downloads      map[string]*download
 	downloadsQueue []*download
 	mu             sync.Mutex
-}
-
-type download struct {
-	ID       string
-	File     *sdfs.File
-	FileName string
-
-	ExpireTime    time.Time
-	DownloadCount uint
-	mu            sync.Mutex
-}
-
-func NewDownload(file *sdfs.File) *download {
-	d := new(download)
-	
-}
-
-// UpdateQueue performs an update to the downloadsQueue
-// it removes expired links
-func (r *Router) UpdateQueue() {
-	t := time.Now()
-	r.mu.Lock()
-	for index, download := range r.downloadsQueue {
-		download.mu.Lock()
-		if download.DownloadCount == 0 {
-			if t.After(download.ExpireTime) {
-				key := download.ID
-				delete(r.downloads, key)
-				r.downloadsQueue = append(r.downloadsQueue[:index], r.downloadsQueue[index+1:]...)
-			}
-		}
-		download.mu.Unlock()
-	}
-	r.mu.Unlock()
-}
-
-// RequestDownload finds the desired file and add it to the downloads,
-// if succeed, it returns a ID for download
-func (r *Router) RequestDownload(path string) (string, error) {
-	file, err := sdfs.Fs.GetFile(path)
-	if err != nil {
-		return "", fmt.Errorf("SDFS returned error: %q", err)
-	}
-
 }
 
 // NewRouter returns a router with sdfs routes
@@ -150,8 +105,7 @@ func (r *Router) Download(w http.ResponseWriter, req *http.Request) {
 	r.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/octet-stream")
-	filename := file.FSPath
-	w.Header().Set("Content-Disposition", fmt.Sprintf("filename=\"%s\"", filename))
+	w.Header().Set("Content-Disposition", fmt.Sprintf("filename=\"%s\"", download.FileName))
 	f, err := file.Open()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
