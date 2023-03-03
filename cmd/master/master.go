@@ -10,6 +10,6 @@ import (
 
 func main() {
 	r := router.NewRouter()
-	log.Printf("Starting Node, Listening on %s", ":8080")
+	log.Printf("Starting Master, Listening on %s", ":8080")
 	http.ListenAndServe(":8080", r)
 }
