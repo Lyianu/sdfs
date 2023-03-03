@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+option go_package = "./pkg/monitor";
+
+service Monitor {
+    rpc SendMetrics (SendMetricsRequest) returns (SendMetricsResponse) {}
+}
+
+message SendMetricsRequest {
+    string ip_addr = 1;
+    float cpu_usage = 2;
+    int32 mem_max = 3;
+    int32 mem_usage = 4;
+    int32 disk_max = 5;
+    int32 disk_usage = 6;
+}
+
+message SendMetricsResponse {
+}
