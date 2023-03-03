@@ -43,8 +43,8 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	method := req.Method
 	if handler, ok := r.routes[method+path]; ok {
 		handler(w, req)
-	} else {
 		w.Header().Add("Content-Type", "text/plain")
+		} else {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "NOT FOUND")
 	}
