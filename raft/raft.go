@@ -6,8 +6,8 @@ import (
 
 const (
 	FOLLOWER = iota
-	LEADER
-	CANDIDATE
+	LEAD
+	CANDIDATEER
 )
 
 type ConsensusModule struct {
