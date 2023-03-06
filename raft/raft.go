@@ -2,8 +2,6 @@ package raft
 
 import (
 	"sync"
-
-	"github.com/Lyianu/sdfs/raft/server"
 )
 
 const (
@@ -15,7 +13,7 @@ const (
 type ConsensusModule struct {
 	id      int
 	peerIds []int
-	server  *server.Server
+	server  *Server
 
 	mu sync.Mutex
 }
