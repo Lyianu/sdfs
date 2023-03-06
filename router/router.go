@@ -20,6 +20,14 @@ type Router struct {
 	mu             sync.Mutex
 }
 
+// NewMasterRouter returns a router with sdfs master node routes
+func NewMasterRouter() *Router {
+	r := &Router{
+		routes: make(map[string]HandleFunc),
+	}
+	return r
+}
+
 // NewRouter returns a router with sdfs routes
 func NewRouter() *Router {
 	r := &Router{
@@ -44,7 +52,7 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if handler, ok := r.routes[method+path]; ok {
 		handler(w, req)
 		w.Header().Add("Content-Type", "text/plain")
-		} else {
+	} else {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "NOT FOUND")
 	}
