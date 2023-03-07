@@ -2,14 +2,10 @@
 package main
 
 import (
-	"log"
-	"net/http"
-
-	"github.com/Lyianu/sdfs/router"
+	"github.com/Lyianu/sdfs/master"
 )
 
 func main() {
-	r := router.NewRouter()
-	log.Printf("Starting Master, Listening on %s", ":8080")
-	http.ListenAndServe(":8080", r)
+	m := master.NewMaster(":8080")
+	m.Start()
 }
