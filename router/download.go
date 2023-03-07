@@ -1,17 +1,15 @@
 package router
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
 	"github.com/Lyianu/sdfs/pkg/util"
-	"github.com/Lyianu/sdfs/sdfs"
 )
 
 type download struct {
 	ID       string
-	File     *sdfs.File
+	Hash     string
 	FileName string
 
 	ExpireTime    time.Time
@@ -19,15 +17,11 @@ type download struct {
 	mu            sync.Mutex
 }
 
-func NewDownload(path string) (*download, error) {
-	f, err := sdfs.Fs.GetFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("SDFS returned error: %q", err)
-	}
+func NewDownload(hash, filename string) (*download, error) {
 	d := new(download)
 	d.ID = util.RandomString(8)
-	d.File = f
-	d.FileName = sdfs.ParseFileName(path)
+	d.Hash = hash
+	d.FileName = filename
 	d.DownloadCount = 0
 	d.ExpireTime = time.Now().Add(1 * time.Hour)
 	return d, nil
