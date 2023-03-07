@@ -36,3 +36,26 @@ func NewServer(listen, connect string) *Server {
 func (s *Server) RequestVote(ctx context.Context, req *RequestVoteRequest) (*RequestVoteResponse, error) {
 
 }
+
+func (s *Server) RegisterMaster(ctx context.Context, req *RegisterMasterRequest) (*RegisterMasterResponse, error) {
+	c, err := grpc.Dial(req.MasterAddr)
+	if err != nil {
+		return &RegisterMasterResponse{Success: false, Id: -1}, err
+	}
+	s.cm.mu.Lock()
+
+	new_id := s.cm.id
+	for _, v := range s.cm.peerIds {
+		if new_id < v {
+			new_id = v
+		}
+	}
+	new_id++
+	s.cm.peerIds = append(s.cm.peerIds, new_id)
+	s.peers[int(new_id)] = c
+	resp := &RegisterMasterResponse{
+		Success: true,
+		Id:      new_id,
+	}
+	return resp, nil
+}

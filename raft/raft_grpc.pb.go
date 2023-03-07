@@ -24,7 +24,7 @@ const _ = grpc.SupportPackageIsVersion7
 type RaftClient interface {
 	RequestVote(ctx context.Context, in *RequestVoteRequest, opts ...grpc.CallOption) (*RequestVoteResponse, error)
 	AppendEntries(ctx context.Context, in *AppendEntriesRequest, opts ...grpc.CallOption) (*AppendEntriesResponse, error)
-	GetPeerList(ctx context.Context, in *GetPeerListRequest, opts ...grpc.CallOption) (*GetPeerListResponse, error)
+	RegisterMaster(ctx context.Context, in *RegisterMasterRequest, opts ...grpc.CallOption) (*RegisterMasterResponse, error)
 }
 
 type raftClient struct {
@@ -53,9 +53,9 @@ func (c *raftClient) AppendEntries(ctx context.Context, in *AppendEntriesRequest
 	return out, nil
 }
 
-func (c *raftClient) GetPeerList(ctx context.Context, in *GetPeerListRequest, opts ...grpc.CallOption) (*GetPeerListResponse, error) {
-	out := new(GetPeerListResponse)
-	err := c.cc.Invoke(ctx, "/Raft/GetPeerList", in, out, opts...)
+func (c *raftClient) RegisterMaster(ctx context.Context, in *RegisterMasterRequest, opts ...grpc.CallOption) (*RegisterMasterResponse, error) {
+	out := new(RegisterMasterResponse)
+	err := c.cc.Invoke(ctx, "/Raft/RegisterMaster", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,7 @@ func (c *raftClient) GetPeerList(ctx context.Context, in *GetPeerListRequest, op
 type RaftServer interface {
 	RequestVote(context.Context, *RequestVoteRequest) (*RequestVoteResponse, error)
 	AppendEntries(context.Context, *AppendEntriesRequest) (*AppendEntriesResponse, error)
-	GetPeerList(context.Context, *GetPeerListRequest) (*GetPeerListResponse, error)
+	RegisterMaster(context.Context, *RegisterMasterRequest) (*RegisterMasterResponse, error)
 	mustEmbedUnimplementedRaftServer()
 }
 
@@ -82,8 +82,8 @@ func (UnimplementedRaftServer) RequestVote(context.Context, *RequestVoteRequest)
 func (UnimplementedRaftServer) AppendEntries(context.Context, *AppendEntriesRequest) (*AppendEntriesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AppendEntries not implemented")
 }
-func (UnimplementedRaftServer) GetPeerList(context.Context, *GetPeerListRequest) (*GetPeerListResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetPeerList not implemented")
+func (UnimplementedRaftServer) RegisterMaster(context.Context, *RegisterMasterRequest) (*RegisterMasterResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RegisterMaster not implemented")
 }
 func (UnimplementedRaftServer) mustEmbedUnimplementedRaftServer() {}
 
@@ -134,20 +134,20 @@ func _Raft_AppendEntries_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Raft_GetPeerList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetPeerListRequest)
+func _Raft_RegisterMaster_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RegisterMasterRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(RaftServer).GetPeerList(ctx, in)
+		return srv.(RaftServer).RegisterMaster(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/Raft/GetPeerList",
+		FullMethod: "/Raft/RegisterMaster",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RaftServer).GetPeerList(ctx, req.(*GetPeerListRequest))
+		return srv.(RaftServer).RegisterMaster(ctx, req.(*RegisterMasterRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -168,8 +168,8 @@ var Raft_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Raft_AppendEntries_Handler,
 		},
 		{
-			MethodName: "GetPeerList",
-			Handler:    _Raft_GetPeerList_Handler,
+			MethodName: "RegisterMaster",
+			Handler:    _Raft_RegisterMaster_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
