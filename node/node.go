@@ -1,9 +1,9 @@
-package main
+package node
 
 import (
-	"log"
 	"net/http"
 
+	"github.com/Lyianu/sdfs/log"
 	"github.com/Lyianu/sdfs/router"
 )
 
@@ -24,6 +24,6 @@ func NewNode(listenAddr string) *Node {
 }
 
 func (n *Node) Start() error {
-	log.Printf("Starting Node, Listening on %s", ":8080")
+	log.Infof("Starting Node, Listening on %s", ":8080")
 	return http.ListenAndServe(n.listenAddr, n.r)
 }

@@ -1,6 +1,8 @@
 package main
 
+import "github.com/Lyianu/sdfs/node"
+
 func main() {
-	n := NewNode(":8080")
+	n := node.NewNode(":8080")
 	n.Start()
 }
