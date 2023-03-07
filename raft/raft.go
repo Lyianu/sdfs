@@ -16,8 +16,8 @@ const (
 var maxRTT = 150
 
 type ConsensusModule struct {
-	id      int
-	peerIds []int
+	id      int32
+	peerIds []int32
 	server  *Server
 
 	currentTerm int

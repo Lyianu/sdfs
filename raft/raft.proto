@@ -44,6 +44,6 @@ message GetPeerListRequest {
 }
 
 message GetPeerListResponse {
-    repeated uint64 peerIds = 1;
+    repeated int32 peerIds = 1;
     repeated string peerAddrs = 2;
 }
