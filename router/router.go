@@ -17,7 +17,7 @@ type Router struct {
 
 	downloads      map[string]*download
 	downloadsQueue []*download
-	mu             sync.Mutex
+	mu             sync.RWMutex
 }
 
 // NewMasterRouter returns a router with sdfs master node routes
@@ -97,7 +97,7 @@ func (r *Router) Download(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprintf(w, "BAD REQUEST")
 		return
 	}
-	r.mu.Lock()
+	r.mu.RLock()
 	download, ok := r.downloads[id]
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
@@ -108,20 +108,19 @@ func (r *Router) Download(w http.ResponseWriter, req *http.Request) {
 	download.mu.Lock()
 	download.DownloadCount++
 	download.mu.Unlock()
-	file := download.File
+	file := download.Hash
 
-	r.mu.Unlock()
+	r.mu.RUnlock()
 
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("filename=\"%s\"", download.FileName))
-	f, err := file.Open()
+	f, err := sdfs.Hs.Get(download.Hash)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "INTERNAL SERVER ERROR")
 		return
 	}
 	io.Copy(w, f)
-	file.Close()
 }
 
 // Delete handles file deletion requests
