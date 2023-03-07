@@ -17,31 +17,20 @@ type Server struct {
 	peers map[int]*grpc.ClientConn
 }
 
-func NewServer() *Server {
+// listen specifies the address at which server listens, connect specifies the
+// server to connect(to receive AE rpcs) at first, if connect is empty
+// it start as the first node in raft cluster
+func NewServer(listen, connect string) *Server {
 	s := &Server{
 		cm:         NewConsensusModule(),
 		grpcServer: grpc.NewServer(),
 	}
-	lis, err := net.Listen("tcp", ":8080")
+	lis, err := net.Listen("tcp", listen)
 	if err != nil {
 		return nil
 	}
 	s.grpcServer.Serve(lis)
 	return s
-}
-
-func (s *Server) GetPeerList(ctx context.Context, req *GetPeerListRequest) (*GetPeerListResponse, error) {
-	var peers []string
-	var peerids []int32
-	for k, v := range s.peers {
-		peers = append(peers, v.Target())
-		peerids = append(peerids, int32(k))
-	}
-	r := &GetPeerListResponse{
-		PeerIds:   peerids,
-		PeerAddrs: peers,
-	}
-	return r, nil
 }
 
 func (s *Server) RequestVote(ctx context.Context, req *RequestVoteRequest) (*RequestVoteResponse, error) {

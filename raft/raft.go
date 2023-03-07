@@ -30,13 +30,11 @@ type ConsensusModule struct {
 	mu sync.Mutex
 }
 
-// NewConsensusModule creates a ConsensusModule, it takes an address of
-// arbitrary Master server to get peerIds, when passed with empty string
-// it creates a server on its own
-func NewConsensusModule(serverAddr string) *ConsensusModule {
+// NewConsensusModule creates a ConsensusModule, its peer list will be set by
+// server at first
+func NewConsensusModule() *ConsensusModule {
 	cm := &ConsensusModule{
-		id:      rand.Int(),
-		peerIds: []int{},
+		id: rand.Int31(),
 	}
 	return cm
 }
