@@ -34,7 +34,8 @@ type file struct {
 
 func NewHashStore() *HashStore {
 	h := &HashStore{
-		s: make(map[string]*file),
+		s:    make(map[string]*file),
+		Size: 0,
 	}
 	return h
 }
@@ -87,12 +88,15 @@ func (h *HashStore) Add(r io.Reader) error {
 }
 
 func (h *HashStore) Remove(hash string) error {
-	b := h.mu.TryLock()
-	if !b {
-		return errors.New("file is accessed by other goroutine")
-	}
+	h.mu.Lock()
 	defer h.mu.Unlock()
-	if _, ok := h.s[hash]; ok {
-
+	if f, ok := h.s[hash]; ok {
+		if f.OpenCount != 0 {
+			return errors.New("file is being accessed by other goroutine")
+		}
+		h.Size -= f.Size
+		delete(h.s, hash)
+		return nil
 	}
+	return errors.New("file not found")
 }

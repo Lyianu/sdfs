@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"sync"
+	"sync/atomic"
 
+	"github.com/Lyianu/sdfs/pkg/settings"
 	"github.com/Lyianu/sdfs/sdfs"
 )
 
@@ -108,7 +111,6 @@ func (r *Router) Download(w http.ResponseWriter, req *http.Request) {
 	download.mu.Lock()
 	download.DownloadCount++
 	download.mu.Unlock()
-	file := download.Hash
 
 	r.mu.RUnlock()
 
@@ -120,7 +122,14 @@ func (r *Router) Download(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprintf(w, "INTERNAL SERVER ERROR")
 		return
 	}
-	io.Copy(w, f)
+	defer atomic.AddInt32(&f.OpenCount, -1)
+	os_f, err := os.Open(settings.DataPathPrefix + f.Hash)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "INTERNAL SERVER ERROR")
+		return
+	}
+	io.Copy(w, os_f)
 }
 
 // Delete handles file deletion requests
