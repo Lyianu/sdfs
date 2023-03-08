@@ -16,13 +16,17 @@ type Master struct {
 	raftServer *raft.Server
 }
 
-func NewMaster(listenAddr, connect string) *Master {
+func NewMaster(listenAddr, connect string) (*Master, error) {
+	s, err := raft.NewServer(settings.RaftRPCListenPort, connect)
+	if err != nil {
+		return nil, err
+	}
 	m := &Master{
 		r:          router.NewMasterRouter(),
 		listenAddr: listenAddr,
-		raftServer: raft.NewServer(settings.RaftRPCListenPort, connect),
+		raftServer: s,
 	}
-	return m
+	return m, nil
 }
 
 func (m *Master) Start() error {

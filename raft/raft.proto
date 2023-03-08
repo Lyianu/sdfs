@@ -11,7 +11,7 @@ service Raft {
 
 message RequestVoteRequest {
     uint64 term = 1;
-    uint64 candidateId = 2;
+    int32 candidateId = 2;
     uint64 lastLogIndex = 3;
     uint64 lastLogTerm = 4;
 }
@@ -42,10 +42,10 @@ message Entry {
 
 message RegisterMasterRequest {
     string masterAddr = 1;
+    int32 id = 2;
 }
 
 message RegisterMasterResponse {
     bool success = 1;
-    int32 id = 2;
-    int32 connectId = 3; // the id of the server being connected to
+    int32 connectId = 2; // the id of the server being connected to
 }

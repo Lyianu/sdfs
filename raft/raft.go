@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"context"
 	"math/rand"
 	"os"
 	"sync"
@@ -84,14 +85,14 @@ func (cm *ConsensusModule) startElection() {
 	voteReceived := 1
 
 	for _, peerId := range cm.peerIds {
-		go func(peerId int) {
+		go func(peerId int32) {
 			args := RequestVoteRequest{
 				Term:        uint64(savedCurrentTerm),
-				CandidateId: uint64(cm.id),
+				CandidateId: int32(cm.id),
 			}
 			//var reply RequestVoteResponse
 
-			if reply, err := cm.server.peers[peerId].RequestVote(); err != nil {
+			if reply, err := cm.server.peers[peerId].RequestVote(context.Background(), &args); err != nil {
 				cm.mu.Lock()
 				defer cm.mu.Unlock()
 
@@ -109,13 +110,13 @@ func (cm *ConsensusModule) startElection() {
 						voteReceived++
 						// enough votes, win the election
 						if voteReceived*2 > len(cm.peerIds)+1 {
-							cm.startLeader()
+							//cm.startLeader()
 							return
 						}
 					}
 				}
 			}
-		}()
+		}(peerId)
 	}
 }
 

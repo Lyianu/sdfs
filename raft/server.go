@@ -2,6 +2,7 @@ package raft
 
 import (
 	"context"
+	"errors"
 	"net"
 	"strings"
 
@@ -17,32 +18,35 @@ type Server struct {
 
 	grpcServer *grpc.Server
 
-	peers map[int]RaftClient
+	peers map[int32]RaftClient
 }
 
 // listen specifies the address at which server listens, connect specifies the
 // server to connect(to receive AE rpcs) at first, if connect is empty
 // it start as the first node in raft cluster
-func NewServer(listen, connect string) *Server {
+func NewServer(listen, connect string) (*Server, error) {
 	s := &Server{
 		cm:         NewConsensusModule(),
 		grpcServer: grpc.NewServer(),
 	}
 	lis, err := net.Listen("tcp", listen)
 	if err != nil {
-		return nil
+		log.Errorf("failed to create grpc server, error: %q", err)
+		return nil, err
 	}
-	s.grpcServer.Serve(lis)
+	go s.grpcServer.Serve(lis)
 
 	// user did not specify address to connect, start as standalone
 	if len(connect) == 0 {
 		s.grpcServer.RegisterService(&Raft_ServiceDesc, s)
-		return s
+		log.Infof("Raft server started, ID: %d", s.cm.id)
+		return s, nil
 	}
 
 	c, err := grpc.Dial(connect + settings.RaftRPCListenPort)
 	if err != nil {
 		log.Errorf("failed to dial remote server, gRPC: %q", err)
+		return nil, err
 	}
 	client := NewRaftClient(c)
 
@@ -58,35 +62,36 @@ func NewServer(listen, connect string) *Server {
 		log.Errorf("failed to register server, gRPC: %q", err)
 		panic("failed to create server")
 	}
-	s.peers[int(resp.ConnectId)] = client
+	s.peers[resp.ConnectId] = client
 	s.grpcServer.RegisterService(&Raft_ServiceDesc, s)
-	return s
+	log.Infof("Connected to cluster(via master %d), Master ID: %d", resp.ConnectId, s.cm.id)
+	return s, nil
 }
 
 func (s *Server) RequestVote(ctx context.Context, req *RequestVoteRequest) (*RequestVoteResponse, error) {
-
+	return nil, nil
 }
 
 func (s *Server) RegisterMaster(ctx context.Context, req *RegisterMasterRequest) (*RegisterMasterResponse, error) {
 	c, err := grpc.Dial(req.MasterAddr)
 	if err != nil {
-		return &RegisterMasterResponse{Success: false, Id: -1}, err
+		return &RegisterMasterResponse{Success: false, ConnectId: -1}, err
 	}
 	s.cm.mu.Lock()
 
-	new_id := s.cm.id
-	for _, v := range s.cm.peerIds {
-		if new_id < v {
-			new_id = v
+	new_id := req.Id
+	for _, peerId := range s.cm.peerIds {
+		if new_id == peerId {
+			log.Errorf("a master with duplicate id tries to connect, id: %d, address: %q", req.Id, req.MasterAddr)
+			return &RegisterMasterResponse{Success: false, ConnectId: req.Id}, errors.New("duplicate id")
 		}
 	}
-	new_id++
 	s.cm.peerIds = append(s.cm.peerIds, new_id)
-	s.peers[int(new_id)] = NewRaftClient(c)
+	s.peers[new_id] = NewRaftClient(c)
 	resp := &RegisterMasterResponse{
 		Success:   true,
-		Id:        new_id,
 		ConnectId: s.cm.id,
 	}
+	log.Infof("Master %q connected, ID: %d", req.MasterAddr, new_id)
 	return resp, nil
 }
