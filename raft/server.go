@@ -9,6 +9,7 @@ import (
 	"github.com/Lyianu/sdfs/log"
 	"github.com/Lyianu/sdfs/pkg/settings"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 type Server struct {
@@ -25,16 +26,23 @@ type Server struct {
 // server to connect(to receive AE rpcs) at first, if connect is empty
 // it start as the first node in raft cluster
 func NewServer(listen, connect string) (*Server, error) {
+	creds, err := credentials.NewServerTLSFromFile("./cert/server.crt", "./cert/server.key")
+	if err != nil {
+		log.Errorf("failed to create grpc server, check certs: %q", err)
+		return nil, err
+	}
 	s := &Server{
 		cm:         NewConsensusModule(),
-		grpcServer: grpc.NewServer(),
+		grpcServer: grpc.NewServer(grpc.Creds(creds)),
 	}
+
 	lis, err := net.Listen("tcp", listen)
+	//RegisterRaftServer(s.grpcServer, s)
+	go s.grpcServer.Serve(lis)
 	if err != nil {
 		log.Errorf("failed to create grpc server, error: %q", err)
 		return nil, err
 	}
-	go s.grpcServer.Serve(lis)
 
 	// user did not specify address to connect, start as standalone
 	if len(connect) == 0 {
@@ -43,7 +51,12 @@ func NewServer(listen, connect string) (*Server, error) {
 		return s, nil
 	}
 
-	c, err := grpc.Dial(connect + settings.RaftRPCListenPort)
+	clientCreds, err := credentials.NewClientTLSFromFile("./cert/server.crt", "server.grpc.io")
+	if err != nil {
+		log.Errorf("failed to parse credentials, error: %q", err)
+		return nil, err
+	}
+	c, err := grpc.Dial(connect+settings.RaftRPCListenPort, grpc.WithTransportCredentials(clientCreds))
 	if err != nil {
 		log.Errorf("failed to dial remote server, gRPC: %q", err)
 		return nil, err
@@ -56,10 +69,11 @@ func NewServer(listen, connect string) (*Server, error) {
 		panic("failed to create server")
 	}
 	l := listen[:loc]
-	resp, err := client.RegisterMaster(context.Background(), &RegisterMasterRequest{MasterAddr: l + settings.RaftRPCListenPort})
+
+	resp, err := client.RegisterMaster(context.Background(), &RegisterMasterRequest{MasterAddr: l + settings.RaftRPCListenPort, Id: s.cm.id})
 
 	if err != nil || !resp.Success {
-		log.Errorf("failed to register server, gRPC: %q", err)
+		log.Errorf("failed to register server, resp: %+v, gRPC: %q", resp, err)
 		panic("failed to create server")
 	}
 	s.peers[resp.ConnectId] = client

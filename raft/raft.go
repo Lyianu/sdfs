@@ -31,6 +31,10 @@ type ConsensusModule struct {
 	mu sync.Mutex
 }
 
+func init() {
+	rand.Seed(time.Now().Unix())
+}
+
 // NewConsensusModule creates a ConsensusModule, its peer list will be set by
 // server at first
 func NewConsensusModule() *ConsensusModule {
