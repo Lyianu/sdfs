@@ -2,10 +2,13 @@
 package main
 
 import (
+	"flag"
 	"github.com/Lyianu/sdfs/master"
 )
 
 func main() {
-	m := master.NewMaster(":8080")
+	connect := *flag.String("c", "", "specify a server to connect")
+	
+	m := master.NewMaster(":8080", connect)
 	m.Start()
 }

@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	"github.com/Lyianu/sdfs/log"
+	"github.com/Lyianu/sdfs/pkg/settings"
+	"github.com/Lyianu/sdfs/raft"
 	"github.com/Lyianu/sdfs/router"
 )
 
@@ -14,10 +16,11 @@ type Master struct {
 	raftServer *raft.Server
 }
 
-func NewMaster(listenAddr string) *Master {
+func NewMaster(listenAddr, connect string) *Master {
 	m := &Master{
 		r:          router.NewMasterRouter(),
 		listenAddr: listenAddr,
+		raftServer: raft.NewServer(settings.RaftRPCListenPort, connect),
 	}
 	return m
 }

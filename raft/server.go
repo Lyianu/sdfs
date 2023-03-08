@@ -3,7 +3,9 @@ package raft
 import (
 	"context"
 	"net"
+	"strings"
 
+	"github.com/Lyianu/sdfs/log"
 	"google.golang.org/grpc"
 )
 
@@ -30,6 +32,24 @@ func NewServer(listen, connect string) *Server {
 		return nil
 	}
 	s.grpcServer.Serve(lis)
+
+	// user did not specify address to connect, start as standalone
+	if len(connect) == 0 {
+		return s
+	}
+
+	loc := strings.Index(listen, ":")
+	if loc == -1 {
+		log.Errorf("failed to parse listen address, check format")
+		panic("failed to create server")
+	}
+	l := listen[:loc]
+	resp, err := s.RegisterMaster(context.Background(), &RegisterMasterRequest{MasterAddr: l + listen})
+	if err != nil || !resp.Success {
+		log.Errorf("failed to register server, gRPC: %q", err)
+		panic("failed to create server")
+	}
+
 	return s
 }
 
