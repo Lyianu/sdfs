@@ -47,4 +47,5 @@ message RegisterMasterRequest {
 message RegisterMasterResponse {
     bool success = 1;
     int32 id = 2;
+    int32 connectId = 3; // the id of the server being connected to
 }

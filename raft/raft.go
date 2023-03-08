@@ -20,8 +20,8 @@ type ConsensusModule struct {
 	peerIds []int32
 	server  *Server
 
-	currentTerm int
-	votedFor    int
+	currentTerm uint64
+	votedFor    int32
 
 	state int
 
@@ -91,7 +91,7 @@ func (cm *ConsensusModule) startElection() {
 			}
 			//var reply RequestVoteResponse
 
-			if reply, err := cm.server.RequestVote(args); err != nil {
+			if reply, err := cm.server.peers[peerId].RequestVote(); err != nil {
 				cm.mu.Lock()
 				defer cm.mu.Unlock()
 

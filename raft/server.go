@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Lyianu/sdfs/log"
+	"github.com/Lyianu/sdfs/pkg/settings"
 	"google.golang.org/grpc"
 )
 
@@ -16,7 +17,7 @@ type Server struct {
 
 	grpcServer *grpc.Server
 
-	peers map[int]*grpc.ClientConn
+	peers map[int]RaftClient
 }
 
 // listen specifies the address at which server listens, connect specifies the
@@ -35,8 +36,15 @@ func NewServer(listen, connect string) *Server {
 
 	// user did not specify address to connect, start as standalone
 	if len(connect) == 0 {
+		s.grpcServer.RegisterService(&Raft_ServiceDesc, s)
 		return s
 	}
+
+	c, err := grpc.Dial(connect + settings.RaftRPCListenPort)
+	if err != nil {
+		log.Errorf("failed to dial remote server, gRPC: %q", err)
+	}
+	client := NewRaftClient(c)
 
 	loc := strings.Index(listen, ":")
 	if loc == -1 {
@@ -44,12 +52,14 @@ func NewServer(listen, connect string) *Server {
 		panic("failed to create server")
 	}
 	l := listen[:loc]
-	resp, err := s.RegisterMaster(context.Background(), &RegisterMasterRequest{MasterAddr: l + listen})
+	resp, err := client.RegisterMaster(context.Background(), &RegisterMasterRequest{MasterAddr: l + settings.RaftRPCListenPort})
+
 	if err != nil || !resp.Success {
 		log.Errorf("failed to register server, gRPC: %q", err)
 		panic("failed to create server")
 	}
-
+	s.peers[int(resp.ConnectId)] = client
+	s.grpcServer.RegisterService(&Raft_ServiceDesc, s)
 	return s
 }
 
@@ -72,10 +82,11 @@ func (s *Server) RegisterMaster(ctx context.Context, req *RegisterMasterRequest)
 	}
 	new_id++
 	s.cm.peerIds = append(s.cm.peerIds, new_id)
-	s.peers[int(new_id)] = c
+	s.peers[int(new_id)] = NewRaftClient(c)
 	resp := &RegisterMasterResponse{
-		Success: true,
-		Id:      new_id,
+		Success:   true,
+		Id:        new_id,
+		ConnectId: s.cm.id,
 	}
 	return resp, nil
 }
