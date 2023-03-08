@@ -9,7 +9,7 @@ import (
 	"github.com/Lyianu/sdfs/log"
 	"github.com/Lyianu/sdfs/pkg/settings"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type Server struct {
@@ -18,6 +18,7 @@ type Server struct {
 	cm *ConsensusModule
 
 	grpcServer *grpc.Server
+	addr       string
 
 	peers map[int32]RaftClient
 }
@@ -25,19 +26,19 @@ type Server struct {
 // listen specifies the address at which server listens, connect specifies the
 // server to connect(to receive AE rpcs) at first, if connect is empty
 // it start as the first node in raft cluster
-func NewServer(listen, connect string) (*Server, error) {
-	creds, err := credentials.NewServerTLSFromFile("./cert/server.crt", "./cert/server.key")
-	if err != nil {
-		log.Errorf("failed to create grpc server, check certs: %q", err)
-		return nil, err
+func NewServer(listen, connect, addr string) (*Server, error) {
+	if len(addr) == 0 {
+		return nil, errors.New("address not specified")
 	}
 	s := &Server{
 		cm:         NewConsensusModule(),
-		grpcServer: grpc.NewServer(grpc.Creds(creds)),
+		grpcServer: grpc.NewServer(),
+		addr:       addr,
+		peers:      make(map[int32]RaftClient),
 	}
 
 	lis, err := net.Listen("tcp", listen)
-	//RegisterRaftServer(s.grpcServer, s)
+	s.grpcServer.RegisterService(&Raft_ServiceDesc, s)
 	go s.grpcServer.Serve(lis)
 	if err != nil {
 		log.Errorf("failed to create grpc server, error: %q", err)
@@ -46,17 +47,11 @@ func NewServer(listen, connect string) (*Server, error) {
 
 	// user did not specify address to connect, start as standalone
 	if len(connect) == 0 {
-		s.grpcServer.RegisterService(&Raft_ServiceDesc, s)
 		log.Infof("Raft server started, ID: %d", s.cm.id)
 		return s, nil
 	}
 
-	clientCreds, err := credentials.NewClientTLSFromFile("./cert/server.crt", "server.grpc.io")
-	if err != nil {
-		log.Errorf("failed to parse credentials, error: %q", err)
-		return nil, err
-	}
-	c, err := grpc.Dial(connect+settings.RaftRPCListenPort, grpc.WithTransportCredentials(clientCreds))
+	c, err := grpc.Dial(connect+settings.RaftRPCListenPort, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Errorf("failed to dial remote server, gRPC: %q", err)
 		return nil, err
@@ -68,16 +63,14 @@ func NewServer(listen, connect string) (*Server, error) {
 		log.Errorf("failed to parse listen address, check format")
 		panic("failed to create server")
 	}
-	l := listen[:loc]
 
-	resp, err := client.RegisterMaster(context.Background(), &RegisterMasterRequest{MasterAddr: l + settings.RaftRPCListenPort, Id: s.cm.id})
+	resp, err := client.RegisterMaster(context.Background(), &RegisterMasterRequest{MasterAddr: s.addr + settings.RaftRPCListenPort, Id: s.cm.id})
 
-	if err != nil || !resp.Success {
+	if err != nil {
 		log.Errorf("failed to register server, resp: %+v, gRPC: %q", resp, err)
 		panic("failed to create server")
 	}
 	s.peers[resp.ConnectId] = client
-	s.grpcServer.RegisterService(&Raft_ServiceDesc, s)
 	log.Infof("Connected to cluster(via master %d), Master ID: %d", resp.ConnectId, s.cm.id)
 	return s, nil
 }
@@ -87,7 +80,7 @@ func (s *Server) RequestVote(ctx context.Context, req *RequestVoteRequest) (*Req
 }
 
 func (s *Server) RegisterMaster(ctx context.Context, req *RegisterMasterRequest) (*RegisterMasterResponse, error) {
-	c, err := grpc.Dial(req.MasterAddr)
+	c, err := grpc.Dial(req.MasterAddr+settings.RaftRPCListenPort, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return &RegisterMasterResponse{Success: false, ConnectId: -1}, err
 	}

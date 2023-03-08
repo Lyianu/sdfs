@@ -16,8 +16,8 @@ type Master struct {
 	raftServer *raft.Server
 }
 
-func NewMaster(listenAddr, connect string) (*Master, error) {
-	s, err := raft.NewServer(settings.RaftRPCListenPort, connect)
+func NewMaster(listenAddr, connect, addr string) (*Master, error) {
+	s, err := raft.NewServer(settings.RaftRPCListenPort, connect, addr)
 	if err != nil {
 		return nil, err
 	}

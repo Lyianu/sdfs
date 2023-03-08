@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "./raft";
+option go_package = "github.com/Lyianu/sdfs/raft;raft";
 
 service Raft {
     rpc RequestVote(RequestVoteRequest) returns (RequestVoteResponse) {}
