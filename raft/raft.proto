@@ -23,7 +23,7 @@ message RequestVoteResponse {
 
 message AppendEntriesRequest {
     uint64 term = 1;
-    uint64 leaderId = 2;
+    int32 leaderId = 2;
     uint64 prevLogIndex = 3;
     uint64 prevLogTerm = 4;
     repeated Entry entries = 5;

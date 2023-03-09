@@ -10,7 +10,7 @@ import (
 
 const (
 	FOLLOWER = iota
-	LEAD
+	LEADER
 	CANDIDATE
 )
 
@@ -129,5 +129,51 @@ func (cm *ConsensusModule) electionTimeout() time.Duration {
 		return time.Duration(maxRTT) * time.Millisecond
 	} else {
 		return time.Duration(maxRTT+rand.Intn(maxRTT)) * time.Millisecond
+	}
+}
+
+func (cm *ConsensusModule) startLeader() {
+	cm.state = LEADER
+
+	go func() {
+		ticker := time.NewTicker(50 * time.Millisecond)
+		defer ticker.Stop()
+
+		for {
+			cm.leaderSendHeartbeats()
+			<-ticker.C
+
+			cm.mu.Lock()
+			if cm.state != LEADER {
+				cm.mu.Unlock()
+				return
+			}
+			cm.mu.Unlock()
+		}
+	}()
+}
+
+func (cm *ConsensusModule) leaderSendHeartbeats() {
+	cm.mu.Lock()
+	if cm.state != LEADER {
+		cm.mu.Unlock()
+		return
+	}
+	savedCurrentTerm := cm.currentTerm
+	cm.mu.Unlock()
+
+	for _, peerId := range cm.peerIds {
+		go func(peerId int32) {
+			req := AppendEntriesRequest{Term: savedCurrentTerm, LeaderId: cm.id}
+			resp, err := cm.server.peers[peerId].AppendEntries(context.Background(), &req)
+			if err == nil {
+				cm.mu.Lock()
+				defer cm.mu.Unlock()
+				if resp.Term > savedCurrentTerm {
+					// cm.becomeFollower(resp.Term)
+					return
+				}
+			}
+		}(peerId)
 	}
 }
