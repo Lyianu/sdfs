@@ -6,6 +6,8 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"github.com/Lyianu/sdfs/log"
 )
 
 const (
@@ -16,6 +18,11 @@ const (
 
 var maxRTT = 150
 
+type LogEntry struct {
+	Command interface{}
+	Term    int
+}
+
 type ConsensusModule struct {
 	id      int32
 	peerIds []int32
@@ -23,9 +30,9 @@ type ConsensusModule struct {
 
 	currentTerm uint64
 	votedFor    int32
+	log         []LogEntry
 
-	state int
-
+	state              int
 	electionResetEvent time.Time
 
 	mu sync.Mutex
@@ -70,7 +77,7 @@ func (cm *ConsensusModule) runElectionTimer() {
 
 		if elapsed := time.Since(cm.electionResetEvent); elapsed >= timeoutDuration {
 			// timeout occurs, become Candidate
-			// cm.startElection()
+			cm.startElection()
 			cm.mu.Unlock()
 			return
 		}
@@ -114,7 +121,7 @@ func (cm *ConsensusModule) startElection() {
 						voteReceived++
 						// enough votes, win the election
 						if voteReceived*2 > len(cm.peerIds)+1 {
-							//cm.startLeader()
+							cm.startLeader()
 							return
 						}
 					}
@@ -130,6 +137,15 @@ func (cm *ConsensusModule) electionTimeout() time.Duration {
 	} else {
 		return time.Duration(maxRTT+rand.Intn(maxRTT)) * time.Millisecond
 	}
+}
+
+func (cm *ConsensusModule) becomeFollower(term uint64) {
+	cm.state = FOLLOWER
+	cm.currentTerm = term
+	cm.votedFor = -1
+	cm.electionResetEvent = time.Now()
+
+	go cm.runElectionTimer()
 }
 
 func (cm *ConsensusModule) startLeader() {
@@ -170,10 +186,37 @@ func (cm *ConsensusModule) leaderSendHeartbeats() {
 				cm.mu.Lock()
 				defer cm.mu.Unlock()
 				if resp.Term > savedCurrentTerm {
-					// cm.becomeFollower(resp.Term)
+					cm.becomeFollower(resp.Term)
 					return
 				}
 			}
 		}(peerId)
 	}
+}
+
+func (cm *ConsensusModule) AppendEntries(req *AppendEntriesRequest) (*AppendEntriesResponse, error) {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+	log.Debugf("AppendEntries: %+v", *req)
+
+	if req.Term > cm.currentTerm {
+		log.Debug(" - term out of data in AE")
+		cm.becomeFollower(req.Term)
+	}
+
+	resp := &AppendEntriesResponse{
+		Success: false,
+	}
+	if req.Term == cm.currentTerm {
+		// only LEADER sends AEs
+		if cm.state != FOLLOWER {
+			cm.becomeFollower(req.Term)
+		}
+		cm.electionResetEvent = time.Now()
+		resp.Success = true
+	}
+
+	resp.Term = cm.currentTerm
+	log.Debugf("AppendEntries resp: %+v", *resp)
+	return resp, nil
 }
