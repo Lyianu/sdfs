@@ -75,6 +75,10 @@ func NewServer(listen, connect, addr string) (*Server, error) {
 	return s, nil
 }
 
+func (s *Server) AppendEntries(ctx context.Context, req *AppendEntriesRequest) (*AppendEntriesResponse, error) {
+	return s.cm.AppendEntries(req)
+}
+
 func (s *Server) RequestVote(ctx context.Context, req *RequestVoteRequest) (*RequestVoteResponse, error) {
 	return nil, nil
 }
