@@ -87,7 +87,7 @@ func (cm *ConsensusModule) runElectionTimer() {
 }
 
 func (cm *ConsensusModule) startElection() {
-	log.Debugf("Election started, term: %d, id: %d", cm.currentTerm+1, cm.id)
+	log.Infof("Election started, term: %d, id: %d", cm.currentTerm+1, cm.id)
 	cm.state = CANDIDATE
 	cm.currentTerm += 1
 	// record term when the election start
@@ -99,13 +99,22 @@ func (cm *ConsensusModule) startElection() {
 
 	for _, peerId := range cm.peerIds {
 		go func(peerId int32) {
+			log.Debugf("[CLIENT]RequestVote(%d)\n", peerId)
 			args := RequestVoteRequest{
 				Term:        uint64(savedCurrentTerm),
 				CandidateId: int32(cm.id),
 			}
 			//var reply RequestVoteResponse
+			for k, v := range cm.server.peers {
+				log.Debugf("cm.server.peers: %d, %+v", k, v)
 
-			if reply, err := cm.server.peers[peerId].RequestVote(context.Background(), &args); err != nil {
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+			defer cancel()
+
+			if reply, err := cm.server.peers[peerId].RequestVote(ctx, &args); err == nil {
+				log.Debugf("RequestVote(%d), resp: %+v", reply.Term)
 				cm.mu.Lock()
 				defer cm.mu.Unlock()
 
@@ -128,6 +137,8 @@ func (cm *ConsensusModule) startElection() {
 						}
 					}
 				}
+			} else {
+				log.Errorf("requestVote: error: %q", err)
 			}
 		}(peerId)
 	}
@@ -137,12 +148,12 @@ func (cm *ConsensusModule) electionTimeout() time.Duration {
 	if len(os.Getenv("RAFT_FORCE_MORE_REELECTION")) > 0 && rand.Intn(3) == 0 {
 		return time.Duration(maxRTT) * time.Millisecond
 	} else {
-		return time.Duration(maxRTT+rand.Intn(maxRTT)) * time.Millisecond
+		return time.Duration(8*maxRTT+rand.Intn(maxRTT)) * time.Millisecond
 	}
 }
 
 func (cm *ConsensusModule) becomeFollower(term uint64) {
-	log.Debugf("FOLLOWER started, term: %d, id: %d", term, cm.id)
+	log.Infof("FOLLOWER started, term: %d, id: %d", term, cm.id)
 	cm.state = FOLLOWER
 	cm.currentTerm = term
 	cm.votedFor = -1
@@ -152,7 +163,7 @@ func (cm *ConsensusModule) becomeFollower(term uint64) {
 }
 
 func (cm *ConsensusModule) startLeader() {
-	log.Debugf("LEADER started, term: %d, id: %d", cm.currentTerm, cm.id)
+	log.Infof("LEADER started, term: %d, id: %d", cm.currentTerm, cm.id)
 	cm.state = LEADER
 
 	go func() {

@@ -1,3 +1,5 @@
+// TODO: Check client health and sync cluster with AE calls
+
 package raft
 
 import (
@@ -5,6 +7,7 @@ import (
 	"errors"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/Lyianu/sdfs/log"
 	"github.com/Lyianu/sdfs/pkg/settings"
@@ -75,6 +78,7 @@ func NewServer(listen, connect, addr string) (*Server, error) {
 	s.peers[resp.ConnectId] = client
 	s.cm.peerIds = append(s.cm.peerIds, resp.ConnectId)
 	log.Infof("Connected to cluster(via master %d), Master ID: %d", resp.ConnectId, s.cm.id)
+	s.cm.becomeFollower(0)
 	return s, nil
 }
 
@@ -83,11 +87,29 @@ func (s *Server) AppendEntries(ctx context.Context, req *AppendEntriesRequest) (
 }
 
 func (s *Server) RequestVote(ctx context.Context, req *RequestVoteRequest) (*RequestVoteResponse, error) {
-	return nil, nil
+	resp := &RequestVoteResponse{}
+	log.Debugf("[SERVER]RequestVote: term: %d, ID: %d", req.Term, req.CandidateId)
+	s.cm.mu.Lock()
+
+	if req.Term > s.cm.currentTerm {
+		s.cm.currentTerm = req.Term
+		defer s.cm.becomeFollower(req.Term)
+	}
+	defer s.cm.mu.Unlock()
+
+	if s.cm.currentTerm == req.Term && (s.cm.votedFor == -1 || s.cm.votedFor == req.CandidateId) {
+		resp.VoteGranted = true
+		s.cm.electionResetEvent = time.Now()
+	} else {
+		resp.VoteGranted = false
+	}
+	resp.Term = s.cm.currentTerm
+
+	return resp, nil
 }
 
 func (s *Server) RegisterMaster(ctx context.Context, req *RegisterMasterRequest) (*RegisterMasterResponse, error) {
-	c, err := grpc.Dial(req.MasterAddr+settings.RaftRPCListenPort, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	c, err := grpc.Dial(req.MasterAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return &RegisterMasterResponse{Success: false, ConnectId: -1}, err
 	}
@@ -108,6 +130,7 @@ func (s *Server) RegisterMaster(ctx context.Context, req *RegisterMasterRequest)
 		Success:   true,
 		ConnectId: s.cm.id,
 	}
-	log.Infof("Master %q connected, ID: %d", req.MasterAddr, new_id)
+	log.Infof("Master %q connected, ID: %d\n", req.MasterAddr, new_id)
+	log.Infof("Master %d raft client: %v\n", new_id, s.peers[new_id])
 	return resp, nil
 }
