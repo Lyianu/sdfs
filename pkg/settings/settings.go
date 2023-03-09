@@ -1,5 +1,6 @@
 package settings
 
 var (
-	DataPathPrefix = "./data/"
+	DataPathPrefix    = "./data/"
+	RaftRPCListenPort = ":9000"
 )

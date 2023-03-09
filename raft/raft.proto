@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+option go_package = "github.com/Lyianu/sdfs/raft;raft";
+
+service Raft {
+    rpc RequestVote(RequestVoteRequest) returns (RequestVoteResponse) {}
+    rpc AppendEntries(AppendEntriesRequest) returns (AppendEntriesResponse) {}
+
+    rpc RegisterMaster(RegisterMasterRequest) returns (RegisterMasterResponse) {}
+}
+
+message RequestVoteRequest {
+    uint64 term = 1;
+    int32 candidateId = 2;
+    uint64 lastLogIndex = 3;
+    uint64 lastLogTerm = 4;
+}
+
+message RequestVoteResponse {
+    uint64 term = 1;
+    bool voteGranted = 2;
+}
+
+message AppendEntriesRequest {
+    uint64 term = 1;
+    int32 leaderId = 2;
+    uint64 prevLogIndex = 3;
+    uint64 prevLogTerm = 4;
+    repeated Entry entries = 5;
+    uint64 leaderCommit = 6;
+}
+
+message AppendEntriesResponse {
+    uint64 term = 1;
+    bool success = 2;
+}
+
+message Entry {
+    uint64 term = 1;
+    bytes data = 2;
+}
+
+message RegisterMasterRequest {
+    string masterAddr = 1;
+    int32 id = 2;
+}
+
+message RegisterMasterResponse {
+    bool success = 1;
+    int32 connectId = 2; // the id of the server being connected to
+}

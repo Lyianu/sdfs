@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"sync"
-	"time"
+	"sync/atomic"
 
+	"github.com/Lyianu/sdfs/pkg/settings"
 	"github.com/Lyianu/sdfs/sdfs"
 )
 
@@ -18,42 +20,15 @@ type Router struct {
 
 	downloads      map[string]*download
 	downloadsQueue []*download
-	mu             sync.Mutex
+	mu             sync.RWMutex
 }
 
-type download struct {
-	ID       string
-	File     *sdfs.File
-	FileName string
-
-	ExpireTime    time.Time
-	DownloadCount uint
-	mu            sync.Mutex
-}
-
-// UpdateQueue performs an update to the downloadsQueue
-// it removes expired links
-func (r *Router) UpdateQueue() {
-	t := time.Now()
-	r.mu.Lock()
-	for index, download := range r.downloadsQueue {
-		download.mu.Lock()
-		if download.DownloadCount == 0 {
-			if t.After(download.ExpireTime) {
-				key := download.ID
-				delete(r.downloads, key)
-				r.downloadsQueue = append(r.downloadsQueue[:index], r.downloadsQueue[index+1:]...)
-			}
-		}
-		download.mu.Unlock()
+// NewMasterRouter returns a router with sdfs master node routes
+func NewMasterRouter() *Router {
+	r := &Router{
+		routes: make(map[string]HandleFunc),
 	}
-	r.mu.Unlock()
-}
-
-// RequestDownload finds the desired file and add it to the downloads,
-// if succeed, it returns a ID for download
-func (r *Router) RequestDownload(path string) (string, error) {
-
+	return r
 }
 
 // NewRouter returns a router with sdfs routes
@@ -79,8 +54,8 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	method := req.Method
 	if handler, ok := r.routes[method+path]; ok {
 		handler(w, req)
-	} else {
 		w.Header().Add("Content-Type", "text/plain")
+	} else {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "NOT FOUND")
 	}
@@ -125,7 +100,7 @@ func (r *Router) Download(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprintf(w, "BAD REQUEST")
 		return
 	}
-	r.mu.Lock()
+	r.mu.RLock()
 	download, ok := r.downloads[id]
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
@@ -136,21 +111,25 @@ func (r *Router) Download(w http.ResponseWriter, req *http.Request) {
 	download.mu.Lock()
 	download.DownloadCount++
 	download.mu.Unlock()
-	file := download.File
 
-	r.mu.Unlock()
+	r.mu.RUnlock()
 
 	w.Header().Set("Content-Type", "application/octet-stream")
-	filename := file.FSPath
-	w.Header().Set("Content-Disposition", fmt.Sprintf("filename=\"%s\"", filename))
-	f, err := file.Open()
+	w.Header().Set("Content-Disposition", fmt.Sprintf("filename=\"%s\"", download.FileName))
+	f, err := sdfs.Hs.Get(download.Hash)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "INTERNAL SERVER ERROR")
 		return
 	}
-	io.Copy(w, f)
-	file.Close()
+	defer atomic.AddInt32(&f.OpenCount, -1)
+	os_f, err := os.Open(settings.DataPathPrefix + f.Hash)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "INTERNAL SERVER ERROR")
+		return
+	}
+	io.Copy(w, os_f)
 }
 
 // Delete handles file deletion requests
