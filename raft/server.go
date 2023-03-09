@@ -36,6 +36,7 @@ func NewServer(listen, connect, addr string) (*Server, error) {
 		addr:       addr,
 		peers:      make(map[int32]RaftClient),
 	}
+	s.cm.server = s
 
 	lis, err := net.Listen("tcp", listen)
 	s.grpcServer.RegisterService(&Raft_ServiceDesc, s)
@@ -91,6 +92,7 @@ func (s *Server) RegisterMaster(ctx context.Context, req *RegisterMasterRequest)
 		return &RegisterMasterResponse{Success: false, ConnectId: -1}, err
 	}
 	s.cm.mu.Lock()
+	defer s.cm.mu.Unlock()
 
 	new_id := req.Id
 	for _, peerId := range s.cm.peerIds {
@@ -99,8 +101,9 @@ func (s *Server) RegisterMaster(ctx context.Context, req *RegisterMasterRequest)
 			return &RegisterMasterResponse{Success: false, ConnectId: req.Id}, errors.New("duplicate id")
 		}
 	}
-	s.cm.peerIds = append(s.cm.peerIds, new_id)
 	s.peers[new_id] = NewRaftClient(c)
+	s.cm.peerIds = append(s.cm.peerIds, new_id)
+
 	resp := &RegisterMasterResponse{
 		Success:   true,
 		ConnectId: s.cm.id,
