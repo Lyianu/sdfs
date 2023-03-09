@@ -16,7 +16,7 @@ const (
 )
 
 var (
-	debugLog = log.New(os.Stdout, "\033[37m[DEBUG]\033[0m", log.LstdFlags|log.Lshortfile)
+	debugLog = log.New(os.Stdout, "\033[37m[DEBUG]\033[0m", log.LstdFlags)
 	errorLog = log.New(os.Stdout, "\033[41m[ERROR]\033[0m", log.LstdFlags|log.Lshortfile)
 	infoLog  = log.New(os.Stdout, "\033[0;34m[INFO ]\033[0m", log.LstdFlags)
 )

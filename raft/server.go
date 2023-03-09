@@ -48,6 +48,7 @@ func NewServer(listen, connect, addr string) (*Server, error) {
 	// user did not specify address to connect, start as standalone
 	if len(connect) == 0 {
 		log.Infof("Raft server started, ID: %d", s.cm.id)
+		s.cm.startLeader()
 		return s, nil
 	}
 
@@ -71,6 +72,7 @@ func NewServer(listen, connect, addr string) (*Server, error) {
 		panic("failed to create server")
 	}
 	s.peers[resp.ConnectId] = client
+	s.cm.peerIds = append(s.cm.peerIds, resp.ConnectId)
 	log.Infof("Connected to cluster(via master %d), Master ID: %d", resp.ConnectId, s.cm.id)
 	return s, nil
 }

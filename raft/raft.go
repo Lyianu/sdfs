@@ -46,7 +46,8 @@ func init() {
 // server at first
 func NewConsensusModule() *ConsensusModule {
 	cm := &ConsensusModule{
-		id: rand.Int31(),
+		id:          rand.Int31(),
+		currentTerm: 0,
 	}
 	return cm
 }
@@ -86,6 +87,7 @@ func (cm *ConsensusModule) runElectionTimer() {
 }
 
 func (cm *ConsensusModule) startElection() {
+	log.Debugf("Election started, term: %d, id: %d", cm.currentTerm+1, cm.id)
 	cm.state = CANDIDATE
 	cm.currentTerm += 1
 	// record term when the election start
@@ -114,7 +116,7 @@ func (cm *ConsensusModule) startElection() {
 
 				if reply.Term > savedCurrentTerm {
 					// term expired
-					// cm.becomeFollower(reply.Term)
+					cm.becomeFollower(reply.Term)
 					return
 				} else if reply.Term == savedCurrentTerm {
 					if reply.VoteGranted {
@@ -140,6 +142,7 @@ func (cm *ConsensusModule) electionTimeout() time.Duration {
 }
 
 func (cm *ConsensusModule) becomeFollower(term uint64) {
+	log.Debugf("FOLLOWER started, term: %d, id: %d", term, cm.id)
 	cm.state = FOLLOWER
 	cm.currentTerm = term
 	cm.votedFor = -1
@@ -149,6 +152,7 @@ func (cm *ConsensusModule) becomeFollower(term uint64) {
 }
 
 func (cm *ConsensusModule) startLeader() {
+	log.Debugf("LEADER started, term: %d, id: %d", cm.currentTerm, cm.id)
 	cm.state = LEADER
 
 	go func() {
@@ -170,6 +174,7 @@ func (cm *ConsensusModule) startLeader() {
 }
 
 func (cm *ConsensusModule) leaderSendHeartbeats() {
+	log.Debugf("Sending HB...\n")
 	cm.mu.Lock()
 	if cm.state != LEADER {
 		cm.mu.Unlock()
@@ -180,8 +185,11 @@ func (cm *ConsensusModule) leaderSendHeartbeats() {
 
 	for _, peerId := range cm.peerIds {
 		go func(peerId int32) {
+			log.Debugf("Sending HB to %d\n", peerId)
 			req := AppendEntriesRequest{Term: savedCurrentTerm, LeaderId: cm.id}
-			resp, err := cm.server.peers[peerId].AppendEntries(context.Background(), &req)
+			ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+			defer cancel()
+			resp, err := cm.server.peers[peerId].AppendEntries(ctx, &req)
 			if err == nil {
 				cm.mu.Lock()
 				defer cm.mu.Unlock()
