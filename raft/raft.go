@@ -14,24 +14,38 @@ const (
 	FOLLOWER = iota
 	LEADER
 	CANDIDATE
+	DEAD
 )
 
 var maxRTT = 150
 
 type LogEntry struct {
 	Command interface{}
-	Term    int
+	Term    uint64
+}
+
+type CommitEntry struct {
+	Command interface{}
+	Index   uint64
+	Term    uint64
 }
 
 type ConsensusModule struct {
-	id      int32
-	peerIds []int32
-	server  *Server
+	id         int32
+	peerIds    []int32
+	server     *Server
+	nextIndex  map[int32]uint64
+	matchIndex map[int32]uint64
 
-	currentTerm uint64
-	votedFor    int32
-	log         []LogEntry
+	commitChan         chan<- CommitEntry
+	newCommitReadyChan chan struct{}
 
+	currentTerm   uint64
+	votedFor      int32
+	log           []LogEntry
+	currentLeader int32
+
+	commitIndex        uint64
 	state              int
 	electionResetEvent time.Time
 
@@ -47,9 +61,28 @@ func init() {
 func NewConsensusModule() *ConsensusModule {
 	cm := &ConsensusModule{
 		id:          rand.Int31(),
+		nextIndex:   make(map[int32]uint64),
+		matchIndex:  make(map[int32]uint64),
+		commitIndex: 0,
+		votedFor:    -1,
 		currentTerm: 0,
 	}
 	return cm
+}
+
+// Submit tries to append entry to the log, it returns leader id on failure
+func (cm *ConsensusModule) Submit(cmd interface{}) (bool, int32) {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	log.Debugf("Submit received by %v: %v", cm.state, cmd)
+	if cm.state == LEADER {
+		log.Debugf("log=%v", cm.log)
+		cm.log = append(cm.log, LogEntry{Command: cmd, Term: cm.currentTerm})
+		return true, cm.id
+	}
+	log.Debugf("cm is not leader, leader ID: %d", cm.currentLeader)
+	return false, cm.currentLeader
 }
 
 func (cm *ConsensusModule) runElectionTimer() {
@@ -125,7 +158,7 @@ func (cm *ConsensusModule) startElection() {
 
 				if reply.Term > savedCurrentTerm {
 					// term expired
-					cm.becomeFollower(reply.Term)
+					cm.becomeFollower(reply.Term, peerId)
 					return
 				} else if reply.Term == savedCurrentTerm {
 					if reply.VoteGranted {
@@ -142,6 +175,7 @@ func (cm *ConsensusModule) startElection() {
 			}
 		}(peerId)
 	}
+	log.Infof("election ended")
 }
 
 func (cm *ConsensusModule) electionTimeout() time.Duration {
@@ -152,10 +186,11 @@ func (cm *ConsensusModule) electionTimeout() time.Duration {
 	}
 }
 
-func (cm *ConsensusModule) becomeFollower(term uint64) {
+func (cm *ConsensusModule) becomeFollower(term uint64, leader int32) {
 	log.Infof("FOLLOWER started, term: %d, id: %d", term, cm.id)
 	cm.state = FOLLOWER
 	cm.currentTerm = term
+	cm.currentLeader = leader
 	cm.votedFor = -1
 	cm.electionResetEvent = time.Now()
 
@@ -196,8 +231,34 @@ func (cm *ConsensusModule) leaderSendHeartbeats() {
 
 	for _, peerId := range cm.peerIds {
 		go func(peerId int32) {
+			cm.mu.Lock()
+			ni, ok := cm.nextIndex[peerId]
+			if !ok {
+				ni = 0
+				cm.nextIndex[peerId] = 0
+				cm.matchIndex[peerId] = 0
+			}
+			prevLogIndex := int64(ni) - 1
+			prevLogTerm := -1
+			if prevLogIndex >= 0 {
+				prevLogTerm = int(cm.log[prevLogIndex].Term)
+			}
+			entries := cm.log[ni:]
+			entry := []*Entry{}
+			for _, v := range entries {
+				entry = append(entry, &Entry{Term: v.Term, Data: []byte(v.Command.([]byte))})
+			}
+
 			log.Debugf("Sending HB to %d\n", peerId)
-			req := AppendEntriesRequest{Term: savedCurrentTerm, LeaderId: cm.id}
+			req := AppendEntriesRequest{
+				Term:         savedCurrentTerm,
+				LeaderId:     cm.id,
+				PrevLogIndex: uint64(prevLogIndex),
+				PrevLogTerm:  uint64(prevLogTerm),
+				Entries:      entry,
+				LeaderCommit: cm.commitIndex,
+			}
+			cm.mu.Unlock()
 			ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
 			defer cancel()
 			resp, err := cm.server.peers[peerId].AppendEntries(ctx, &req)
@@ -205,8 +266,34 @@ func (cm *ConsensusModule) leaderSendHeartbeats() {
 				cm.mu.Lock()
 				defer cm.mu.Unlock()
 				if resp.Term > savedCurrentTerm {
-					cm.becomeFollower(resp.Term)
+					cm.becomeFollower(resp.Term, resp.LeaderId)
 					return
+				}
+
+				if cm.state == LEADER && savedCurrentTerm == resp.Term {
+					if resp.Success {
+						cm.nextIndex[peerId] = ni + uint64(len(entry))
+						cm.matchIndex[peerId] = cm.nextIndex[peerId] - 1
+						log.Debugf("AE resp from %d success: nextIndex := %v, matchIndex := %v", peerId, cm.nextIndex, cm.matchIndex)
+
+						savedCommitIndex := cm.commitIndex
+						for i := cm.commitIndex + 1; i < uint64(len(cm.log)); i++ {
+							matchCount := 1
+							for _, peerId := range cm.peerIds {
+								if cm.matchIndex[peerId] >= i {
+									matchCount++
+								}
+							}
+							if matchCount*2 > len(cm.peerIds)+1 {
+								cm.commitIndex = 1
+							}
+						}
+						if cm.commitIndex != savedCommitIndex {
+							cm.newCommitReadyChan <- struct{}{}
+						}
+					} else {
+						cm.nextIndex[peerId] = ni - 1
+					}
 				}
 			}
 		}(peerId)
@@ -220,7 +307,7 @@ func (cm *ConsensusModule) AppendEntries(req *AppendEntriesRequest) (*AppendEntr
 
 	if req.Term > cm.currentTerm {
 		log.Debug(" - term out of data in AE")
-		cm.becomeFollower(req.Term)
+		cm.becomeFollower(req.Term, req.LeaderId)
 	}
 
 	resp := &AppendEntriesResponse{
@@ -229,10 +316,14 @@ func (cm *ConsensusModule) AppendEntries(req *AppendEntriesRequest) (*AppendEntr
 	if req.Term == cm.currentTerm {
 		// only LEADER sends AEs
 		if cm.state != FOLLOWER {
-			cm.becomeFollower(req.Term)
+			cm.becomeFollower(req.Term, req.LeaderId)
 		}
 		cm.electionResetEvent = time.Now()
 		resp.Success = true
+	}
+
+	if req.Term < cm.currentTerm {
+		resp.LeaderId = cm.currentLeader
 	}
 
 	resp.Term = cm.currentTerm

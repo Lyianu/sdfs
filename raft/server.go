@@ -77,7 +77,7 @@ func NewServer(listen, connect, addr string) (*Server, error) {
 	}
 	s.peers[resp.ConnectId] = client
 	s.cm.peerIds = append(s.cm.peerIds, resp.ConnectId)
-	log.Infof("Connected to cluster(via master %d), Master ID: %d", resp.ConnectId, s.cm.id)
+	log.Debugf("Connected to cluster(via master %d), Master ID: %d", resp.ConnectId, s.cm.id)
 	s.cm.becomeFollower(0)
 	return s, nil
 }
