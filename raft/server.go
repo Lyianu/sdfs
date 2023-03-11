@@ -7,7 +7,6 @@ import (
 	"errors"
 	"net"
 	"strings"
-	"time"
 
 	"github.com/Lyianu/sdfs/log"
 	"github.com/Lyianu/sdfs/pkg/settings"
@@ -92,26 +91,7 @@ func (s *Server) AppendEntries(ctx context.Context, req *AppendEntriesRequest) (
 }
 
 func (s *Server) RequestVote(ctx context.Context, req *RequestVoteRequest) (*RequestVoteResponse, error) {
-	resp := &RequestVoteResponse{}
-	log.Debugf("[SERVER]RequestVote: term: %d, ID: %d", req.Term, req.CandidateId)
-	s.cm.mu.Lock()
-	log.Debugf("[SERVER]RV Server term: %d", s.cm.currentTerm)
-
-	if req.Term > s.cm.currentTerm {
-		s.cm.currentTerm = req.Term
-		defer s.cm.becomeFollower(req.Term, req.CandidateId)
-	}
-	defer s.cm.mu.Unlock()
-
-	if s.cm.currentTerm == req.Term && (s.cm.votedFor == -1 || s.cm.votedFor == req.CandidateId) {
-		resp.VoteGranted = true
-		s.cm.electionResetEvent = time.Now()
-	} else {
-		resp.VoteGranted = false
-	}
-	resp.Term = s.cm.currentTerm
-
-	return resp, nil
+	return s.cm.RequestVote(req)
 }
 
 func (s *Server) RegisterMaster(ctx context.Context, req *RegisterMasterRequest) (*RegisterMasterResponse, error) {

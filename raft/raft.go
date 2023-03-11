@@ -442,3 +442,26 @@ func (cm *ConsensusModule) commitChanSender() {
 	}
 	log.Debugf("commitChanShader done")
 }
+
+func (cm *ConsensusModule) RequestVote(req *RequestVoteRequest) (*RequestVoteResponse, error) {
+	resp := &RequestVoteResponse{}
+	log.Debugf("[SERVER]RequestVote: term: %d, ID: %d", req.Term, req.CandidateId)
+	cm.mu.Lock()
+	log.Debugf("[SERVER]RV Server term: %d", cm.currentTerm)
+
+	if req.Term > cm.currentTerm {
+		cm.currentTerm = req.Term
+		defer cm.becomeFollower(req.Term, req.CandidateId)
+	}
+	defer cm.mu.Unlock()
+
+	if cm.currentTerm == req.Term && (cm.votedFor == -1 || cm.votedFor == req.CandidateId) {
+		resp.VoteGranted = true
+		cm.electionResetEvent = time.Now()
+	} else {
+		resp.VoteGranted = false
+	}
+	resp.Term = cm.currentTerm
+
+	return resp, nil
+}
