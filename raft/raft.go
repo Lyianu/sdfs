@@ -56,6 +56,7 @@ type ConsensusModule struct {
 
 	commitChan         chan<- CommitEntry
 	newCommitReadyChan chan struct{}
+	lastApplied        uint64
 
 	currentTerm   uint64
 	votedFor      int32
@@ -355,14 +356,75 @@ func (cm *ConsensusModule) AppendEntries(req *AppendEntriesRequest) (*AppendEntr
 			cm.becomeFollower(req.Term, req.LeaderId)
 		}
 		cm.electionResetEvent = time.Now()
-		resp.Success = true
 	}
 
 	if req.Term < cm.currentTerm {
 		resp.LeaderId = cm.currentLeader
 	}
 
+	if req.PrevLogIndex == 0 || (req.PrevLogIndex < uint64(len(cm.log)) && req.PrevLogTerm == cm.log[req.PrevLogIndex].Term) {
+		resp.Success = true
+
+		logInsertIndex := req.PrevLogIndex + 1
+		newEntriesIndex := 0
+
+		for {
+			if logInsertIndex >= uint64(len(cm.log)) || newEntriesIndex >= len(req.Entries) {
+				break
+			}
+			if cm.log[logInsertIndex].Term != req.Entries[newEntriesIndex].Term {
+				break
+			}
+			logInsertIndex++
+			newEntriesIndex++
+		}
+		f := func(e []*Entry) (r []LogEntry) {
+			for _, k := range e {
+				l := LogEntry{
+					Term:    k.Term,
+					Command: k.Data,
+				}
+				r = append(r, l)
+			}
+			return
+		}
+		if newEntriesIndex < len(req.Entries) {
+			cm.log = append(cm.log[:logInsertIndex], f(req.Entries[newEntriesIndex:])...)
+		}
+
+		if req.LeaderCommit > cm.commitIndex {
+			cm.commitIndex = req.LeaderCommit
+			if uint64(len(cm.log))-1 < cm.commitIndex {
+				cm.commitIndex = uint64(len(cm.log) - 1)
+				cm.newCommitReadyChan <- struct{}{}
+			}
+		}
+	}
+
 	resp.Term = cm.currentTerm
 	log.Debugf("AppendEntries resp: %+v", *resp)
 	return resp, nil
+}
+
+func (cm *ConsensusModule) commitChanSender() {
+	for range cm.newCommitReadyChan {
+		cm.mu.Lock()
+		savedTerm := cm.currentTerm
+		savedLastApplied := cm.lastApplied
+		var entries []LogEntry
+		if cm.commitIndex > cm.lastApplied {
+			entries = cm.log[cm.lastApplied+1 : cm.commitIndex+1]
+			cm.lastApplied = cm.commitIndex
+		}
+		cm.mu.Unlock()
+
+		for i, entry := range entries {
+			cm.commitChan <- CommitEntry{
+				Command: entry.Command,
+				Index:   savedLastApplied + uint64(i) + 1,
+				Term:    savedTerm,
+			}
+		}
+	}
+	log.Debugf("commitChanShader done")
 }
