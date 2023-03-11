@@ -96,6 +96,15 @@ func NewConsensusModule(ready <-chan struct{}) *ConsensusModule {
 	return cm
 }
 
+func (cm *ConsensusModule) lastLogIndexAndTerm() (uint64, uint64) {
+	if len(cm.log) > 0 {
+		lastIndex := len(cm.log) - 1
+		return uint64(lastIndex), cm.log[lastIndex].Term
+	} else {
+		return 0, 0
+	}
+}
+
 // Submit tries to append entry to the log, it returns leader id on failure
 func (cm *ConsensusModule) Submit(cmd interface{}) (bool, int32) {
 	cm.mu.Lock()
@@ -164,9 +173,14 @@ func (cm *ConsensusModule) startElection() {
 	for _, peerId := range cm.peerIds {
 		go func(peerId int32) {
 			log.Debugf("[CLIENT]RequestVote(%d)\n", peerId)
+			cm.mu.Lock()
+			savedLastLogIndex, savedLastLogTerm := cm.lastLogIndexAndTerm()
+			cm.mu.Unlock()
 			args := RequestVoteRequest{
-				Term:        uint64(savedCurrentTerm),
-				CandidateId: int32(cm.id),
+				Term:         uint64(savedCurrentTerm),
+				CandidateId:  int32(cm.id),
+				LastLogIndex: savedLastLogIndex,
+				LastLogTerm:  savedLastLogTerm,
 			}
 			//var reply RequestVoteResponse
 			for k, v := range cm.server.peers {
