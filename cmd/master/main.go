@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	log.SetLevel(log.INFO)
+	log.SetLevel(log.DEBUG)
 	connect := flag.String("c", "", "specify a server to connect")
 	listen := flag.String("l", ":8080", "listen address")
 	addr := flag.String("a", "", "server address")

@@ -10,12 +10,29 @@ import (
 	"github.com/Lyianu/sdfs/log"
 )
 
+type CMState int
+
 const (
-	FOLLOWER = iota
+	FOLLOWER CMState = iota
 	LEADER
 	CANDIDATE
 	DEAD
 )
+
+func (s CMState) String() string {
+	switch s {
+	case FOLLOWER:
+		return "FOLLOWER"
+	case LEADER:
+		return "LEADER"
+	case CANDIDATE:
+		return "CANDIDATE"
+	case DEAD:
+		return "DEAD"
+	default:
+		return "UNREACHABLE"
+	}
+}
 
 var maxRTT = 150
 
@@ -46,7 +63,7 @@ type ConsensusModule struct {
 	currentLeader int32
 
 	commitIndex        uint64
-	state              int
+	state              CMState
 	electionResetEvent time.Time
 
 	mu sync.Mutex
@@ -58,7 +75,7 @@ func init() {
 
 // NewConsensusModule creates a ConsensusModule, its peer list will be set by
 // server at first
-func NewConsensusModule() *ConsensusModule {
+func NewConsensusModule(ready <-chan struct{}) *ConsensusModule {
 	cm := &ConsensusModule{
 		id:          rand.Int31(),
 		nextIndex:   make(map[int32]uint64),
@@ -67,6 +84,14 @@ func NewConsensusModule() *ConsensusModule {
 		votedFor:    -1,
 		currentTerm: 0,
 	}
+
+	go func() {
+		<-ready
+		cm.mu.Lock()
+		cm.electionResetEvent = time.Now()
+		cm.mu.Unlock()
+		cm.runElectionTimer()
+	}()
 	return cm
 }
 
@@ -111,8 +136,8 @@ func (cm *ConsensusModule) runElectionTimer() {
 
 		if elapsed := time.Since(cm.electionResetEvent); elapsed >= timeoutDuration {
 			// timeout occurs, become Candidate
-			cm.startElection()
 			cm.mu.Unlock()
+			cm.startElection()
 			return
 		}
 		cm.mu.Unlock()
@@ -129,6 +154,11 @@ func (cm *ConsensusModule) startElection() {
 	cm.votedFor = cm.id
 
 	voteReceived := 1
+	if len(cm.peerIds) == 0 {
+		log.Debugf("no peers, elect self as leader")
+		cm.startLeader()
+		return
+	}
 
 	for _, peerId := range cm.peerIds {
 		go func(peerId int32) {
@@ -147,24 +177,26 @@ func (cm *ConsensusModule) startElection() {
 			defer cancel()
 
 			if reply, err := cm.server.peers[peerId].RequestVote(ctx, &args); err == nil {
-				log.Debugf("RequestVote(%d), resp: %+v", reply.Term)
+				log.Debugf("RequestVote(%d), resp: %+v", peerId, *reply)
 				cm.mu.Lock()
-				defer cm.mu.Unlock()
 
 				if cm.state != CANDIDATE {
 					// not in CANDIDATE state
+					cm.mu.Unlock()
 					return
 				}
 
 				if reply.Term > savedCurrentTerm {
 					// term expired
 					cm.becomeFollower(reply.Term, peerId)
+					cm.mu.Unlock()
 					return
 				} else if reply.Term == savedCurrentTerm {
 					if reply.VoteGranted {
 						voteReceived++
 						// enough votes, win the election
 						if voteReceived*2 > len(cm.peerIds)+1 {
+							cm.mu.Unlock()
 							cm.startLeader()
 							return
 						}
@@ -173,9 +205,10 @@ func (cm *ConsensusModule) startElection() {
 			} else {
 				log.Errorf("requestVote: error: %q", err)
 			}
+			cm.mu.Unlock()
 		}(peerId)
 	}
-	log.Infof("election ended")
+	log.Infof("election RV queue ended(might have unfinished RVs)")
 }
 
 func (cm *ConsensusModule) electionTimeout() time.Duration {
@@ -200,6 +233,9 @@ func (cm *ConsensusModule) becomeFollower(term uint64, leader int32) {
 func (cm *ConsensusModule) startLeader() {
 	log.Infof("LEADER started, term: %d, id: %d", cm.currentTerm, cm.id)
 	cm.state = LEADER
+	cm.mu.Lock()
+	cm.currentLeader = cm.id
+	cm.mu.Unlock()
 
 	go func() {
 		ticker := time.NewTicker(50 * time.Millisecond)

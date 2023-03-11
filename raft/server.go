@@ -33,8 +33,9 @@ func NewServer(listen, connect, addr string) (*Server, error) {
 	if len(addr) == 0 {
 		return nil, errors.New("address not specified")
 	}
+	rdy := make(chan struct{})
 	s := &Server{
-		cm:         NewConsensusModule(),
+		cm:         NewConsensusModule(rdy),
 		grpcServer: grpc.NewServer(),
 		addr:       addr,
 		peers:      make(map[int32]RaftClient),
@@ -52,7 +53,9 @@ func NewServer(listen, connect, addr string) (*Server, error) {
 	// user did not specify address to connect, start as standalone
 	if len(connect) == 0 {
 		log.Infof("Raft server started, ID: %d", s.cm.id)
-		s.cm.startLeader()
+		rdy <- struct{}{}
+
+		// s.cm.startLeader()
 		return s, nil
 	}
 
@@ -69,6 +72,7 @@ func NewServer(listen, connect, addr string) (*Server, error) {
 		panic("failed to create server")
 	}
 
+	log.Debugf("trying to register master")
 	resp, err := client.RegisterMaster(context.Background(), &RegisterMasterRequest{MasterAddr: s.addr + settings.RaftRPCListenPort, Id: s.cm.id})
 
 	if err != nil {
@@ -78,7 +82,8 @@ func NewServer(listen, connect, addr string) (*Server, error) {
 	s.peers[resp.ConnectId] = client
 	s.cm.peerIds = append(s.cm.peerIds, resp.ConnectId)
 	log.Debugf("Connected to cluster(via master %d), Master ID: %d", resp.ConnectId, s.cm.id)
-	s.cm.becomeFollower(0)
+	rdy <- struct{}{}
+	// s.cm.becomeFollower(0, resp.LeaderId)
 	return s, nil
 }
 
@@ -90,10 +95,11 @@ func (s *Server) RequestVote(ctx context.Context, req *RequestVoteRequest) (*Req
 	resp := &RequestVoteResponse{}
 	log.Debugf("[SERVER]RequestVote: term: %d, ID: %d", req.Term, req.CandidateId)
 	s.cm.mu.Lock()
+	log.Debugf("[SERVER]RV Server term: %d", s.cm.currentTerm)
 
 	if req.Term > s.cm.currentTerm {
 		s.cm.currentTerm = req.Term
-		defer s.cm.becomeFollower(req.Term)
+		defer s.cm.becomeFollower(req.Term, req.CandidateId)
 	}
 	defer s.cm.mu.Unlock()
 
@@ -109,6 +115,7 @@ func (s *Server) RequestVote(ctx context.Context, req *RequestVoteRequest) (*Req
 }
 
 func (s *Server) RegisterMaster(ctx context.Context, req *RegisterMasterRequest) (*RegisterMasterResponse, error) {
+	log.Debugf("[SERVER]RegisterMaster received: %+v", *req)
 	c, err := grpc.Dial(req.MasterAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return &RegisterMasterResponse{Success: false, ConnectId: -1}, err
