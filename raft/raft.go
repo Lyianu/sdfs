@@ -201,11 +201,11 @@ func (cm *ConsensusModule) startElection() {
 							return
 						}
 					}
+					cm.mu.Unlock()
 				}
 			} else {
 				log.Errorf("requestVote: error: %q", err)
 			}
-			cm.mu.Unlock()
 		}(peerId)
 	}
 	log.Infof("election RV queue ended(might have unfinished RVs)")
