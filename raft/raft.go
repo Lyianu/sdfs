@@ -448,6 +448,7 @@ func (cm *ConsensusModule) RequestVote(req *RequestVoteRequest) (*RequestVoteRes
 	log.Debugf("[SERVER]RequestVote: term: %d, ID: %d", req.Term, req.CandidateId)
 	cm.mu.Lock()
 	log.Debugf("[SERVER]RV Server term: %d", cm.currentTerm)
+	lastLogIndex, lastLogTerm := cm.lastLogIndexAndTerm()
 
 	if req.Term > cm.currentTerm {
 		cm.currentTerm = req.Term
@@ -455,7 +456,8 @@ func (cm *ConsensusModule) RequestVote(req *RequestVoteRequest) (*RequestVoteRes
 	}
 	defer cm.mu.Unlock()
 
-	if cm.currentTerm == req.Term && (cm.votedFor == -1 || cm.votedFor == req.CandidateId) {
+	if cm.currentTerm == req.Term && (cm.votedFor == -1 || cm.votedFor == req.CandidateId) &&
+		(req.LastLogTerm > lastLogTerm || (req.LastLogTerm == lastLogTerm && req.LastLogIndex >= lastLogIndex)) {
 		resp.VoteGranted = true
 		cm.electionResetEvent = time.Now()
 	} else {
