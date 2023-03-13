@@ -112,6 +112,7 @@ func (s *Server) RegisterMaster(ctx context.Context, req *RegisterMasterRequest)
 	}
 	s.peers[new_id] = NewRaftClient(c)
 	s.cm.peerIds = append(s.cm.peerIds, new_id)
+	
 
 	resp := &RegisterMasterResponse{
 		Success:   true,
