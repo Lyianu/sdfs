@@ -125,8 +125,3 @@ func (s *Server) RegisterMaster(ctx context.Context, req *RegisterMasterRequest)
 	log.Infof("Master %d raft client: %v\n", new_id, s.peers[new_id])
 	return resp, nil
 }
-
-type AddServerStruct struct {
-	ServerAddr string
-	ServerId   int32
-}

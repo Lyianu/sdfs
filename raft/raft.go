@@ -301,7 +301,8 @@ func (cm *ConsensusModule) leaderSendHeartbeats() {
 			entries := cm.log[ni:]
 			entry := []*Entry{}
 			for _, v := range entries {
-				entry = append(entry, &Entry{Term: v.Term, Type: , Data: []byte(v.Command.([]byte))})
+				e := Serialize(v)
+				entry = append(entry, e)
 			}
 
 			req := AppendEntriesRequest{
