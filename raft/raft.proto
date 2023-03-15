@@ -38,7 +38,8 @@ message AppendEntriesResponse {
 
 message Entry {
     uint64 term = 1;
-    bytes data = 2;
+    int32 type = 2;
+    bytes data = 3;
 }
 
 message RegisterMasterRequest {

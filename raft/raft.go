@@ -106,6 +106,7 @@ func (cm *ConsensusModule) lastLogIndexAndTerm() (uint64, uint64) {
 }
 
 // Submit tries to append entry to the log, it returns leader id on failure
+// TODO: Refactor to return leader address on failure
 func (cm *ConsensusModule) Submit(cmd interface{}) (bool, int32) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
