@@ -14,6 +14,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+var raftServer *Server
+
 type Server struct {
 	UnimplementedRaftServer
 
@@ -29,6 +31,9 @@ type Server struct {
 // server to connect(to receive AE rpcs) at first, if connect is empty
 // it start as the first node in raft cluster
 func NewServer(listen, connect, addr string) (*Server, error) {
+	if raftServer != nil {
+		return raftServer, nil
+	}
 	if len(addr) == 0 {
 		return nil, errors.New("address not specified")
 	}

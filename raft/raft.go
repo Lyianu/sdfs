@@ -34,7 +34,7 @@ func (s CMState) String() string {
 	}
 }
 
-var maxRTT = 150
+var maxRTT = 500
 
 type LogEntry struct {
 	Command interface{}
@@ -298,6 +298,7 @@ func (cm *ConsensusModule) leaderSendHeartbeats() {
 			if prevLogIndex >= 0 {
 				prevLogTerm = int(cm.log[prevLogIndex].Term)
 			}
+			log.Debugf("nextIndex: %d", ni)
 			entries := cm.log[ni:]
 			entry := []*Entry{}
 			for _, v := range entries {
