@@ -27,8 +27,8 @@ func Serialize(v interface{}) *Entry {
 }
 
 func Deserialize(e *Entry) interface{} {
-
-	return struct{}{}
+	id := e.Type
+	return entryCmdHandler[id](e)
 }
 
 func RegisterCommandConversionHandler(id int32, v interface{}, ceh CmdEntryConversionHandler, ech EntryCmdConversionHandler) {
