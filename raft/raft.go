@@ -107,7 +107,9 @@ func (cm *ConsensusModule) lastLogIndexAndTerm() (uint64, uint64) {
 
 // Submit tries to append entry to the log, it returns leader id on failure
 // TODO: Refactor to return leader address on failure
-func (cm *ConsensusModule) Submit(cmd interface{}) (bool, int32) {
+func (cm *ConsensusModule) Submit(cmd interface{}) (res bool, id int32) {
+	log.Debugf("Submit requested")
+	defer log.Debugf("Submit result: %t", res)
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
@@ -283,6 +285,7 @@ func (cm *ConsensusModule) leaderSendHeartbeats() {
 
 	for _, peerId := range cm.peerIds {
 		go func(peerId int32) {
+			log.Debugf("Sending HB to %d\n", peerId)
 			cm.mu.Lock()
 			ni, ok := cm.nextIndex[peerId]
 			if !ok {
@@ -298,10 +301,9 @@ func (cm *ConsensusModule) leaderSendHeartbeats() {
 			entries := cm.log[ni:]
 			entry := []*Entry{}
 			for _, v := range entries {
-				entry = append(entry, &Entry{Term: v.Term, Data: []byte(v.Command.([]byte))})
+				entry = append(entry, &Entry{Term: v.Term, Type: , Data: []byte(v.Command.([]byte))})
 			}
 
-			log.Debugf("Sending HB to %d\n", peerId)
 			req := AppendEntriesRequest{
 				Term:         savedCurrentTerm,
 				LeaderId:     cm.id,

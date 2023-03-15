@@ -101,7 +101,6 @@ func (s *Server) RegisterMaster(ctx context.Context, req *RegisterMasterRequest)
 		return &RegisterMasterResponse{Success: false, ConnectId: -1}, err
 	}
 	s.cm.mu.Lock()
-	defer s.cm.mu.Unlock()
 
 	new_id := req.Id
 	for _, peerId := range s.cm.peerIds {
@@ -112,16 +111,16 @@ func (s *Server) RegisterMaster(ctx context.Context, req *RegisterMasterRequest)
 	}
 	s.peers[new_id] = NewRaftClient(c)
 	s.cm.peerIds = append(s.cm.peerIds, new_id)
-	s.cm.commitChan <- CommitEntry{}
 
 	resp := &RegisterMasterResponse{
 		Success:   true,
 		ConnectId: s.cm.id,
 	}
-	//ok, id := s.cm.Submit(AddServerStruct{
-	//	ServerAddr: req.MasterAddr,
-	//	ServerId: ,
-	//})
+	s.cm.mu.Unlock()
+	s.cm.Submit(AddServerStruct{
+		ServerAddr: req.MasterAddr,
+		ServerId:   req.Id,
+	})
 	log.Infof("Master %q connected, ID: %d\n", req.MasterAddr, new_id)
 	log.Infof("Master %d raft client: %v\n", new_id, s.peers[new_id])
 	return resp, nil
@@ -129,5 +128,5 @@ func (s *Server) RegisterMaster(ctx context.Context, req *RegisterMasterRequest)
 
 type AddServerStruct struct {
 	ServerAddr string
-	ServerId   string
+	ServerId   int32
 }
