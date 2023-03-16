@@ -84,6 +84,7 @@ func NewConsensusModule(ready <-chan struct{}) *ConsensusModule {
 		commitIndex: 0,
 		votedFor:    -1,
 		currentTerm: 0,
+		log:         []LogEntry{{Command: nil, Term: 0}},
 	}
 
 	go func() {
@@ -273,6 +274,7 @@ func (cm *ConsensusModule) startLeader() {
 	}()
 }
 
+// TODO: fix nextItem slice out of range(of INT64_MAX)
 func (cm *ConsensusModule) leaderSendHeartbeats() {
 	log.Debugf("Sending HB...\n")
 	cm.mu.Lock()
@@ -289,8 +291,8 @@ func (cm *ConsensusModule) leaderSendHeartbeats() {
 			cm.mu.Lock()
 			ni, ok := cm.nextIndex[peerId]
 			if !ok {
-				ni = 0
-				cm.nextIndex[peerId] = 0
+				ni = 1
+				cm.nextIndex[peerId] = 1
 				cm.matchIndex[peerId] = 0
 			}
 			prevLogIndex := int64(ni) - 1
@@ -329,6 +331,7 @@ func (cm *ConsensusModule) leaderSendHeartbeats() {
 				if cm.state == LEADER && savedCurrentTerm == resp.Term {
 					if resp.Success {
 						cm.nextIndex[peerId] = ni + uint64(len(entry))
+						// this line
 						cm.matchIndex[peerId] = cm.nextIndex[peerId] - 1
 						log.Debugf("AE resp from %d success: nextIndex := %v, matchIndex := %v", peerId, cm.nextIndex, cm.matchIndex)
 
@@ -345,7 +348,7 @@ func (cm *ConsensusModule) leaderSendHeartbeats() {
 							}
 						}
 						if cm.commitIndex != savedCommitIndex {
-							cm.newCommitReadyChan <- struct{}{}
+							//cm.newCommitReadyChan <- struct{}{}
 						}
 					} else {
 						cm.nextIndex[peerId] = ni - 1
@@ -401,7 +404,7 @@ func (cm *ConsensusModule) AppendEntries(req *AppendEntriesRequest) (*AppendEntr
 			for _, k := range e {
 				l := LogEntry{
 					Term:    k.Term,
-					Command: k.Data,
+					Command: Execute(k),
 				}
 				r = append(r, l)
 			}

@@ -48,8 +48,10 @@ func Deserialize(e *Entry) interface{} {
 	return entryCmdHandler[id](e)
 }
 
-func Execute(e *Entry) {
-
+func Execute(e *Entry) interface{} {
+	og := Deserialize(e)
+	cmdIdExecutor[e.Type](og)
+	return og
 }
 
 func RegisterCommandConversionHandler(id int32, v interface{}, ceh CmdEntryConversionHandler, ech EntryCmdConversionHandler, ce CmdExecutor) {

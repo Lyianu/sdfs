@@ -3,9 +3,9 @@ package raft
 import (
 	"bytes"
 	"encoding/binary"
+	"io"
 
 	"github.com/Lyianu/sdfs/log"
-	"github.com/Lyianu/sdfs/pkg/settings"
 	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -28,25 +28,23 @@ func AddServerStructToEntry(v interface{}) (e *Entry) {
 }
 
 func EntryToAddServerStruct(e *Entry) interface{} {
-	a := &AddServerStruct{}
+	a := AddServerStruct{}
 	r := bytes.NewReader(e.Data)
 	binary.Read(r, binary.LittleEndian, &a.ServerId)
-	var sAddr []byte
-	r.Read(sAddr)
+	sAddr, _ := io.ReadAll(r)
 	a.ServerAddr = string(sAddr)
 	return a
 }
 
 func AddServerExecutor(v interface{}) {
-	a := v.(*AddServerStruct)
+	a, ok := v.(AddServerStruct)
+	log.Debugf("addServerExecutor assertion: %t", ok)
 	if raftServer.cm.id == a.ServerId {
 		return
 	}
 	log.Debugf("adding server from AppendEntries rpc call, server id: %d, address: %q", a.ServerId, a.ServerAddr)
-	raftServer.cm.mu.Lock()
-	defer raftServer.cm.mu.Unlock()
 	raftServer.cm.peerIds = append(raftServer.cm.peerIds, a.ServerId)
-	c, err := grpc.Dial(a.ServerAddr+settings.RaftRPCListenPort, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	c, err := grpc.Dial(a.ServerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Errorf("failed to dial server from AppendEntries rpc call, error: %q", err)
 	}

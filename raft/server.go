@@ -45,6 +45,7 @@ func NewServer(listen, connect, addr string) (*Server, error) {
 		peers:      make(map[int32]RaftClient),
 	}
 	s.cm.server = s
+	raftServer = s
 
 	lis, err := net.Listen("tcp", listen)
 	s.grpcServer.RegisterService(&Raft_ServiceDesc, s)
