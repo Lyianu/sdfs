@@ -10,6 +10,7 @@ import (
 
 	"github.com/Lyianu/sdfs/log"
 	"github.com/Lyianu/sdfs/pkg/settings"
+	"github.com/Lyianu/sdfs/sdfs"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -25,6 +26,9 @@ type Server struct {
 	addr       string
 
 	peers map[int32]RaftClient
+
+	// sdfs as raft client
+	FS *sdfs.FS
 }
 
 // listen specifies the address at which server listens, connect specifies the
@@ -43,6 +47,7 @@ func NewServer(listen, connect, addr string) (*Server, error) {
 		grpcServer: grpc.NewServer(),
 		addr:       addr,
 		peers:      make(map[int32]RaftClient),
+		FS:         sdfs.NewFS(),
 	}
 	s.cm.server = s
 	raftServer = s
@@ -93,6 +98,7 @@ func NewServer(listen, connect, addr string) (*Server, error) {
 }
 
 func (s *Server) AppendEntries(ctx context.Context, req *AppendEntriesRequest) (*AppendEntriesResponse, error) {
+	log.Debugf("[SERVER]Received AE call, req: %+v", *req)
 	return s.cm.AppendEntries(req)
 }
 

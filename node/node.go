@@ -5,11 +5,13 @@ import (
 
 	"github.com/Lyianu/sdfs/log"
 	"github.com/Lyianu/sdfs/router"
+	"github.com/Lyianu/sdfs/sdfs"
 )
 
 type Node struct {
 	r          *router.Router
 	listenAddr string
+	HS         *sdfs.HashStore
 
 	// node's id(hash)
 	id string

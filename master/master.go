@@ -7,11 +7,13 @@ import (
 	"github.com/Lyianu/sdfs/pkg/settings"
 	"github.com/Lyianu/sdfs/raft"
 	"github.com/Lyianu/sdfs/router"
+	"github.com/Lyianu/sdfs/sdfs"
 )
 
 type Master struct {
 	r          *router.Router
 	listenAddr string
+	FS         *sdfs.FS
 
 	raftServer *raft.Server
 }

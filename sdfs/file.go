@@ -1,10 +1,7 @@
 package sdfs
 
 import (
-	"os"
 	"sync"
-
-	"github.com/Lyianu/sdfs/pkg/settings"
 )
 
 // File represents a file in the local SDFS namespace
@@ -20,8 +17,10 @@ type File struct {
 	SemaphoreReplica uint32
 	Size             uint64
 
-	File *os.File
-	mu   sync.Mutex
+	// Host contains hosts that has this file in their hashstores
+	Host []string
+
+	mu sync.Mutex
 }
 
 type Location struct {
@@ -50,27 +49,4 @@ func NewFile(name, checksum, localPath string, fileSize uint64, parent *Director
 	f.SemaphoreReplica = 1
 	f.Size = fileSize
 	return f
-}
-
-// Open opens a SDFS file with os.Open and returns it as *os.File
-func (f *File) Open() (*os.File, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.SemaphoreOpen++
-	var err error
-	f.File, err = os.Open(settings.DataPathPrefix + f.LocalPath)
-	return f.File, err
-}
-
-// Close closes a SDFS file instance, when the file is not needed, it closes
-// the local file
-// When a open file has been Closed twice, the method will not handle error
-func (f *File) Close() error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.SemaphoreOpen--
-	if f.SemaphoreOpen == 0 {
-		return f.File.Close()
-	}
-	return nil
 }

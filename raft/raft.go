@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/Lyianu/sdfs/log"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type CMState int
@@ -224,6 +226,10 @@ func (cm *ConsensusModule) startElection() {
 				}
 			} else {
 				log.Errorf("requestVote: error: %q", err)
+				// rpc server deadline exceeded
+				if status.Code(err) == codes.DeadlineExceeded {
+					return
+				}
 			}
 		}(peerId)
 	}
@@ -257,7 +263,7 @@ func (cm *ConsensusModule) startLeader() {
 	cm.mu.Unlock()
 
 	go func() {
-		ticker := time.NewTicker(50 * time.Millisecond)
+		ticker := time.NewTicker(150 * time.Millisecond)
 		defer ticker.Stop()
 
 		for {
@@ -333,7 +339,7 @@ func (cm *ConsensusModule) leaderSendHeartbeats() {
 						cm.nextIndex[peerId] = ni + uint64(len(entry))
 						// this line
 						cm.matchIndex[peerId] = cm.nextIndex[peerId] - 1
-						log.Debugf("AE resp from %d success: nextIndex := %v, matchIndex := %v", peerId, cm.nextIndex, cm.matchIndex)
+						log.Debugf("AE resp from %d success: nextIndex := %v, matchIndex := %v", peerId, cm.nextIndex[peerId], cm.matchIndex[peerId])
 
 						savedCommitIndex := cm.commitIndex
 						for i := cm.commitIndex + 1; i < uint64(len(cm.log)); i++ {
