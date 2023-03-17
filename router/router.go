@@ -37,9 +37,9 @@ func NewRouter() *Router {
 	r := &Router{
 		routes: make(map[string]HandleFunc),
 	}
-	r.addRoute(http.MethodPost, URLSDFSUpload, r.Upload)
+	r.addRoute(http.MethodPost, URLUpload, r.Upload)
 	r.addRoute(http.MethodGet, URLDownload, r.Download)
-	r.addRoute(http.MethodGet, "/api/sdfs/delete", r.Delete)
+	r.addRoute(http.MethodGet, URLSDFSDelete, r.Delete)
 	return r
 }
 
@@ -87,21 +87,17 @@ func (r *Router) Upload(c *Context) {
 
 // Delete handles file deletion requests
 func (r *Router) Delete(c *Context) {
-	path := req.URL.Query().Get("path")
-	w.Header().Add("Content-Type", "text/plain")
-	if path == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "BAD REQUEST")
+	hash := c.Query("hash")
+	if hash == "" {
+		c.String(http.StatusBadRequest, "Bad Request: hash not found")
 		return
 	}
-	err := sdfs.Fs.DeleteFile(path)
+	err := sdfs.Hs.Remove(hash)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "SDFS returned error: %q", err)
+		c.String(http.StatusInternalServerError, "Internal Server Error: sdfs error: %q", err)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Success")
+	c.String(http.StatusOK, "Success")
 }
 
 // Download handles file download requests from client
