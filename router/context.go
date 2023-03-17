@@ -20,8 +20,13 @@ func (c *Context) StatusCode(code int) int {
 	return code
 }
 
+func (c *Context) SetHeader(key, value string) string {
+	c.w.Header().Set(key, value)
+	return key
+}
+
 func (c *Context) SetContentType(cType string) string {
-	c.w.Header().Set("Content-Type", cType)
+	c.SetHeader("Content-Type", cType)
 	return cType
 }
 
@@ -41,4 +46,8 @@ func (c *Context) JSON(code int, h H) error {
 		c.StatusCode(http.StatusInternalServerError)
 	}
 	return err
+}
+
+func (c *Context) Query(queryString string) string {
+	return c.req.URL.Query().Get(queryString)
 }

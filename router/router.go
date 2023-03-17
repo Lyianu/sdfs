@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"sync"
+	"sync/atomic"
 
+	"github.com/Lyianu/sdfs/pkg/settings"
 	"github.com/Lyianu/sdfs/sdfs"
 )
 
@@ -106,4 +109,41 @@ func (r *Router) Delete(w http.ResponseWriter, req *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "Success")
+}
+
+// Download handles file download requests from client
+func (r *Router) Download(c *Context) {
+	id := c.Query("id")
+	c.SetContentType("text/plain")
+	if id == "" {
+		c.String(http.StatusBadRequest, "Bad Request: id not found")
+		return
+	}
+	r.mu.RLock()
+	download, ok := r.downloads[id]
+	if !ok {
+		c.String(http.StatusNotFound, "Not Found: id not exist")
+		return
+	}
+
+	download.mu.Lock()
+	download.DownloadCount++
+	download.mu.Unlock()
+
+	r.mu.RUnlock()
+
+	c.SetContentType("application/octet-stream")
+	c.SetHeader("Content-Disposition", fmt.Sprintf("filename=\"%s\"", download.FileName))
+	f, err := sdfs.Hs.Get(download.Hash)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Internal Server Error: sdfs error: %q", err)
+		return
+	}
+	defer atomic.AddInt32(&f.OpenCount, -1)
+	os_f, err := os.Open(settings.DataPathPrefix + f.Hash)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Internal Server Error: sdfs error: %q", err)
+		return
+	}
+	io.Copy(c.w, os_f)
 }
