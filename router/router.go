@@ -37,9 +37,9 @@ func NewRouter() *Router {
 	r := &Router{
 		routes: make(map[string]HandleFunc),
 	}
-	r.addRoute(http.MethodPost, "/api/upload", r.Upload)
-	r.addRoute(http.MethodGet, "/api/download", r.Download)
-	r.addRoute(http.MethodGet, "/api/delete", r.Delete)
+	r.addRoute(http.MethodPost, URLSDFSUpload, r.Upload)
+	r.addRoute(http.MethodGet, URLDownload, r.Download)
+	r.addRoute(http.MethodGet, "/api/sdfs/delete", r.Delete)
 	return r
 }
 
@@ -63,37 +63,30 @@ func (r *Router) ServeHTTP(c *Context) {
 }
 
 // Upload handles file upload requests
-func (r *Router) Upload(w http.ResponseWriter, req *http.Request) {
-	path := req.URL.Query().Get("path")
-	if path == "" {
-		w.Header().Add("Content-Type", "text/plain")
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "BAD REQUEST")
+func (r *Router) Upload(c *Context) {
+	id := c.Query("id")
+	if id == "" {
+		c.String(http.StatusBadRequest, "Bad Request: id not found")
 		return
 	}
-	b, err := io.ReadAll(req.Body)
+	err := sdfs.Hs.Add(c.req.Body)
 	if err != nil {
-		w.Header().Add("Content-Type", "text/plain")
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "FAILED TO READ BODY")
+		c.String(http.StatusBadRequest, "Bad Request: failed to read body")
 		return
 	}
-	defer req.Body.Close()
-	err = sdfs.Fs.AddFile(path, b)
+	defer c.req.Body.Close()
 	if err != nil {
-		w.Header().Add("Content-Type", "text/plain")
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "SDFS returned error: %q", err)
+		c.String(http.StatusInternalServerError, "Internal Server Error: sdfs error: %q", err)
 		return
 	}
 
-	w.Header().Add("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusAccepted)
-	fmt.Fprintf(w, "Success")
+	// TODO: report to master
+
+	c.String(http.StatusAccepted, "Success")
 }
 
 // Delete handles file deletion requests
-func (r *Router) Delete(w http.ResponseWriter, req *http.Request) {
+func (r *Router) Delete(c *Context) {
 	path := req.URL.Query().Get("path")
 	w.Header().Add("Content-Type", "text/plain")
 	if path == "" {
