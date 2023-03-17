@@ -10,6 +10,8 @@ import (
 	"github.com/Lyianu/sdfs/sdfs"
 )
 
+var FS *sdfs.FS
+
 type Master struct {
 	r          *router.Router
 	listenAddr string
@@ -19,6 +21,10 @@ type Master struct {
 }
 
 func NewMaster(listenAddr, connect, addr string) (*Master, error) {
+	if FS == nil {
+		FS = sdfs.NewFS()
+	}
+
 	s, err := raft.NewServer(settings.RaftRPCListenPort, connect, addr)
 	if err != nil {
 		return nil, err
@@ -27,6 +33,7 @@ func NewMaster(listenAddr, connect, addr string) (*Master, error) {
 		r:          router.NewMasterRouter(),
 		listenAddr: listenAddr,
 		raftServer: s,
+		FS:         FS,
 	}
 	return m, nil
 }

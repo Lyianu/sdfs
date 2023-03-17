@@ -15,6 +15,14 @@ type Context struct {
 
 type H map[string]interface{}
 
+func NewContext(w http.ResponseWriter, req *http.Request) *Context {
+	c := &Context{
+		w:   w,
+		req: req,
+	}
+	return c
+}
+
 func (c *Context) StatusCode(code int) int {
 	c.status = code
 	return code
