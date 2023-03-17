@@ -1,7 +1,6 @@
 package router
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/Lyianu/sdfs/sdfs"
@@ -15,21 +14,26 @@ func NewMasterRouter() *Router {
 	return r
 }
 
-func (r *Router) MasterDownload(w http.ResponseWriter, req *http.Request) {
-	path := req.URL.Query().Get("path")
+func (r *Router) MasterDownload(c *Context) {
+	path := c.Query("path")
 	if path == "" {
-		w.Header().Set("Content-Type", "text/plain")
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, `Bad Request: query "path" not found`)
+		c.String(http.StatusBadRequest, "Bad Request: path not found")
 		return
 	}
 	f, err := sdfs.Fs.GetFile(path)
 	if err != nil {
-		w.Header().Set("Content-Type", "text-plain")
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Internal Server Error: sdfs error: %q", err)
+		c.String(http.StatusInternalServerError, "Internal Server Error: sdfs error: %q", err)
+		return
 	}
-
+	hash := f.Checksum
+	// TODO: Load Balance
+	host := f.Host[0]
+	url, err := HTTPGetFileDownloadAddress(host, hash)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Internal Server Error: %q", err)
+		return
+	}
+	c.String(http.StatusOK, url)
 }
 
 // HTTP API, could be refactored to use RPC in the future
