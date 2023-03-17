@@ -11,6 +11,18 @@ import (
 	"github.com/Lyianu/sdfs/sdfs"
 )
 
+// NewRouter returns a router with sdfs routes
+func NewRouter() *Router {
+	r := &Router{
+		routes: make(map[string]HandleFunc),
+	}
+	r.addRoute(http.MethodPost, URLUpload, r.Upload)
+	r.addRoute(http.MethodGet, URLDownload, r.Download)
+	r.addRoute(http.MethodGet, URLSDFSDelete, r.Delete)
+	r.addRoute(http.MethodGet, URLSDFSDownload, r.AddDownload)
+	return r
+}
+
 // Upload handles file upload requests
 func (r *Router) Upload(c *Context) {
 	id := c.Query("id")
@@ -84,4 +96,9 @@ func (r *Router) Download(c *Context) {
 		return
 	}
 	io.Copy(c.w, os_f)
+}
+
+// AddDownload
+func (r *Router) AddDownload(c *Context) {
+
 }

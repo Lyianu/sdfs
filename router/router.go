@@ -18,25 +18,6 @@ type Router struct {
 	mu             sync.RWMutex
 }
 
-// NewMasterRouter returns a router with sdfs master node routes
-func NewMasterRouter() *Router {
-	r := &Router{
-		routes: make(map[string]HandleFunc),
-	}
-	return r
-}
-
-// NewRouter returns a router with sdfs routes
-func NewRouter() *Router {
-	r := &Router{
-		routes: make(map[string]HandleFunc),
-	}
-	r.addRoute(http.MethodPost, URLUpload, r.Upload)
-	r.addRoute(http.MethodGet, URLDownload, r.Download)
-	r.addRoute(http.MethodGet, URLSDFSDelete, r.Delete)
-	return r
-}
-
 // addRoute adds route to the router
 func (r *Router) addRoute(method, path string, handler HandleFunc) {
 	r.routes[method+path] = handler

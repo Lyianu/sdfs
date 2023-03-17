@@ -8,6 +8,8 @@ import (
 	"github.com/Lyianu/sdfs/sdfs"
 )
 
+var HS *sdfs.HashStore
+
 type Node struct {
 	r          *router.Router
 	listenAddr string
@@ -18,9 +20,13 @@ type Node struct {
 }
 
 func NewNode(listenAddr string) *Node {
+	if HS == nil {
+		HS = sdfs.NewHashStore()
+	}
 	n := &Node{
 		r:          router.NewRouter(),
 		listenAddr: listenAddr,
+		HS:         HS,
 	}
 	return n
 }
