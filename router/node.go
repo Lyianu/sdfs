@@ -45,7 +45,7 @@ func (r *Router) Upload(c *Context) {
 		return
 	}
 
-	// TODO: report to master
+	// report to master
 	HTTPUploadCallback(r.masterAddr, id, hash)
 
 	c.String(http.StatusAccepted, "Success")

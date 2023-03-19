@@ -1,10 +1,14 @@
 package router
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 
+	"github.com/Lyianu/sdfs/log"
+	"github.com/Lyianu/sdfs/raft"
 	"github.com/Lyianu/sdfs/sdfs"
 )
 
@@ -16,6 +20,8 @@ func NewMasterRouter() *Router {
 	return r
 }
 
+// MasterDownload gets request from client, parse the request, request the file
+// on the Node server and return the URL of the requested file to the client
 func (r *Router) MasterDownload(c *Context) {
 	path := c.Query("path")
 	if path == "" {
@@ -39,6 +45,8 @@ func (r *Router) MasterDownload(c *Context) {
 }
 
 // HTTP API, could be refactored to use RPC in the future
+// HTTPGetFileDownloadAddress contacts Node server so that requested file will
+// be exposed, then it returns the URL of the requested file
 func HTTPGetFileDownloadAddress(hostname, fileHash, fileName string) (string, error) {
 	URL := fmt.Sprintf("%s%s?hash=%s&name=%s", hostname, URLSDFSDownload, fileHash, fileName)
 	resp, err := http.Get(URL)
@@ -52,4 +60,35 @@ func HTTPGetFileDownloadAddress(hostname, fileHash, fileName string) (string, er
 	}
 	resultURL := fmt.Sprintf("%s%s?id=%s", hostname, URLDownload, string(b))
 	return resultURL, err
+}
+
+// HTTP API, could be refactor to use RPC in the future
+// HTTPUploadCallbackServer registers successful upload from Nodes
+func HTTPUploadCallbackServer(c *Context) {
+	if raft.Raft.CM().State() != raft.LEADER {
+		leader := strconv.Itoa(int((raft.Raft.CM().CurrentLeader())))
+		c.String(http.StatusTemporaryRedirect, leader)
+		log.Debugf("callback sent to the wrong master, redirecting to %s", leader)
+		return
+	}
+	request := H{
+		"id":   "",
+		"hash": "",
+	}
+	b, err := io.ReadAll(c.req.Body)
+	if err != nil {
+		log.Errorf("callback error opening request body: %q", err)
+		c.String(http.StatusBadRequest, "Bad Request: %q", err)
+		return
+	}
+	defer c.req.Body.Close()
+	err = json.Unmarshal(b, &request)
+	if err != nil {
+		log.Errorf("callback error parsing request: %q", err)
+		c.String(http.StatusBadRequest, "Bad Request: %q", err)
+		return
+	}
+	// TODO: mark upload as finished, add file to the SDFS.FS
+
+	c.String(http.StatusAccepted, "Success")
 }

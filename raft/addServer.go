@@ -38,14 +38,14 @@ func EntryToAddServerStruct(e *Entry) interface{} {
 
 func AddServerExecutor(v interface{}) {
 	a := v.(AddServerStruct)
-	if raftServer.cm.id == a.ServerId {
+	if Raft.cm.id == a.ServerId {
 		return
 	}
 	log.Debugf("adding server from AppendEntries rpc call, server id: %d, address: %q", a.ServerId, a.ServerAddr)
-	raftServer.cm.peerIds = append(raftServer.cm.peerIds, a.ServerId)
+	Raft.cm.peerIds = append(Raft.cm.peerIds, a.ServerId)
 	c, err := grpc.Dial(a.ServerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Errorf("failed to dial server from AppendEntries rpc call, error: %q", err)
 	}
-	raftServer.peers[a.ServerId] = NewRaftClient(c)
+	Raft.peers[a.ServerId] = NewRaftClient(c)
 }

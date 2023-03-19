@@ -15,7 +15,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-var raftServer *Server
+var Raft *Server
 
 type Server struct {
 	UnimplementedRaftServer
@@ -31,12 +31,16 @@ type Server struct {
 	FS *sdfs.FS
 }
 
+func (s *Server) CM() *ConsensusModule {
+	return s.cm
+}
+
 // listen specifies the address at which server listens, connect specifies the
 // server to connect(to receive AE rpcs) at first, if connect is empty
 // it start as the first node in raft cluster
 func NewServer(listen, connect, addr string) (*Server, error) {
-	if raftServer != nil {
-		return raftServer, nil
+	if Raft != nil {
+		return Raft, nil
 	}
 	if len(addr) == 0 {
 		return nil, errors.New("address not specified")
@@ -50,7 +54,7 @@ func NewServer(listen, connect, addr string) (*Server, error) {
 		FS:         sdfs.NewFS(),
 	}
 	s.cm.server = s
-	raftServer = s
+	Raft = s
 
 	lis, err := net.Listen("tcp", listen)
 	s.grpcServer.RegisterService(&Raft_ServiceDesc, s)

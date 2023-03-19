@@ -72,6 +72,18 @@ type ConsensusModule struct {
 	mu sync.Mutex
 }
 
+func (cm *ConsensusModule) CurrentLeader() int32 {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+	return cm.currentLeader
+}
+
+func (cm *ConsensusModule) State() CMState {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+	return cm.state
+}
+
 func init() {
 	rand.Seed(time.Now().Unix())
 }
