@@ -14,4 +14,6 @@ const (
 
 	URLSDFSWrite = "/api/sdfs/write"
 	URLWrite     = "/api/write"
+
+	URLUploadCallback = "/api/callback/upload"
 )

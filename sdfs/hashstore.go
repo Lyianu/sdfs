@@ -51,11 +51,11 @@ func (h *HashStore) Get(hash string) (*file, error) {
 	return nil, errors.New("file with specific hash not found")
 }
 
-func (h *HashStore) Add(r io.Reader) error {
+func (h *HashStore) Add(r io.Reader) (string, error) {
 	tmpName := settings.DataPathPrefix + util.RandomString(16)
 	f, err := os.Create(tmpName)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer f.Close()
 	tReader := io.TeeReader(r, f)
@@ -64,17 +64,17 @@ func (h *HashStore) Add(r io.Reader) error {
 	sum := string(hash.Sum(nil))
 	if err != nil {
 		os.Remove(tmpName)
-		return err
+		return "", err
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if _, ok := h.s[sum]; ok {
 		os.Remove(tmpName)
-		return errors.New("file with same SHA256 checksum exists")
+		return "", errors.New("file with same SHA256 checksum exists")
 	}
 	n := settings.DataPathPrefix + sum
 	if err = os.Rename(tmpName, n); err != nil {
-		return err
+		return "", err
 	}
 	h.s[sum] = &file{
 		Hash:      sum,
@@ -84,7 +84,7 @@ func (h *HashStore) Add(r io.Reader) error {
 
 	atomic.AddInt64(&h.Size, size)
 
-	return nil
+	return sum, nil
 }
 
 func (h *HashStore) Remove(hash string) error {

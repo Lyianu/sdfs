@@ -37,8 +37,7 @@ func EntryToAddServerStruct(e *Entry) interface{} {
 }
 
 func AddServerExecutor(v interface{}) {
-	a, ok := v.(AddServerStruct)
-	log.Debugf("addServerExecutor assertion: %t", ok)
+	a := v.(AddServerStruct)
 	if raftServer.cm.id == a.ServerId {
 		return
 	}

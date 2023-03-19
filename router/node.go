@@ -1,6 +1,8 @@
 package router
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,9 +15,10 @@ import (
 )
 
 // NewRouter returns a router with sdfs routes
-func NewRouter() *Router {
+func NewRouter(master string) *Router {
 	r := &Router{
-		routes: make(map[string]HandleFunc),
+		routes:     make(map[string]HandleFunc),
+		masterAddr: master,
 	}
 	r.addRoute(http.MethodPost, URLUpload, r.Upload)
 	r.addRoute(http.MethodGet, URLDownload, r.Download)
@@ -31,7 +34,7 @@ func (r *Router) Upload(c *Context) {
 		c.String(http.StatusBadRequest, "Bad Request: id not found")
 		return
 	}
-	err := sdfs.Hs.Add(c.req.Body)
+	hash, err := sdfs.Hs.Add(c.req.Body)
 	if err != nil {
 		c.String(http.StatusBadRequest, "Bad Request: failed to read body")
 		return
@@ -43,6 +46,7 @@ func (r *Router) Upload(c *Context) {
 	}
 
 	// TODO: report to master
+	HTTPUploadCallback(r.masterAddr, id, hash)
 
 	c.String(http.StatusAccepted, "Success")
 }
@@ -110,4 +114,34 @@ func (r *Router) AddDownload(c *Context) {
 		return
 	}
 	c.String(http.StatusOK, "%s", file)
+}
+
+func HTTPUploadCallback(masterAddr, id, hash string) error {
+	addr := masterAddr + URLUploadCallback
+	request := H{
+		"id":   id,
+		"hash": hash,
+	}
+	b, err := json.Marshal(request)
+	if err != nil {
+		log.Errorf("unable to marshal json on upload callback: %q", err)
+		return err
+	}
+	r := bytes.NewReader(b)
+	resp, err := http.Post(addr, "application/json", r)
+	if err != nil {
+		log.Errorf("unable to send request on upload callback: %q", err)
+		return err
+	}
+	defer resp.Body.Close()
+	result, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Errorf("unable to read response on upload callback: %q", err)
+		return err
+	}
+	url := string(result)
+	if resp.StatusCode != http.StatusOK {
+		return HTTPUploadCallback(url, id, hash)
+	}
+	return nil
 }

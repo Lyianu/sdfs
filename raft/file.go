@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
+
+	"github.com/Lyianu/sdfs/log"
+	"github.com/Lyianu/sdfs/sdfs"
 )
 
 type AddFileStruct struct {
@@ -42,4 +45,10 @@ func EntryToAddFileStruct(e *Entry) interface{} {
 	path, _ := io.ReadAll(r)
 	a.Path = string(path)
 	return a
+}
+
+func AddFileExecutor(v interface{}) {
+	a := v.(AddFileStruct)
+	log.Debugf("adding file from AppendEntries rpc call, file: %q", a.Path)
+	sdfs.Fs.AddFile()
 }
