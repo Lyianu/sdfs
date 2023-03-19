@@ -1,6 +1,8 @@
 package router
 
 import (
+	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/Lyianu/sdfs/sdfs"
@@ -28,7 +30,7 @@ func (r *Router) MasterDownload(c *Context) {
 	hash := f.Checksum
 	// TODO: Load Balance
 	host := f.Host[0]
-	url, err := HTTPGetFileDownloadAddress(host, hash)
+	url, err := HTTPGetFileDownloadAddress(host, hash, sdfs.ParseFileName(path))
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Internal Server Error: %q", err)
 		return
@@ -37,6 +39,17 @@ func (r *Router) MasterDownload(c *Context) {
 }
 
 // HTTP API, could be refactored to use RPC in the future
-func HTTPGetFileDownloadAddress(hostname, fileHash string) (string, error) {
-	return "", nil
+func HTTPGetFileDownloadAddress(hostname, fileHash, fileName string) (string, error) {
+	URL := fmt.Sprintf("%s%s?hash=%s&name=%s", hostname, URLSDFSDownload, fileHash, fileName)
+	resp, err := http.Get(URL)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	resultURL := fmt.Sprintf("%s%s?id=%s", hostname, URLDownload, string(b))
+	return resultURL, err
 }

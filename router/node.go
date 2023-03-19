@@ -7,6 +7,7 @@ import (
 	"os"
 	"sync/atomic"
 
+	"github.com/Lyianu/sdfs/log"
 	"github.com/Lyianu/sdfs/pkg/settings"
 	"github.com/Lyianu/sdfs/sdfs"
 )
@@ -100,5 +101,13 @@ func (r *Router) Download(c *Context) {
 
 // AddDownload
 func (r *Router) AddDownload(c *Context) {
-
+	filehash := c.Query("hash")
+	filename := c.Query("name")
+	file, err := r.RequestDownload(filehash, filename)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Internal Server Error: sdfs error: %q", err)
+		log.Errorf("%s - %q", c.req.URL, err)
+		return
+	}
+	c.String(http.StatusOK, "%s", file)
 }

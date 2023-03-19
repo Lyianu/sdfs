@@ -41,7 +41,7 @@ func (c *Context) SetContentType(cType string) string {
 func (c *Context) String(code int, message string, a ...interface{}) error {
 	c.StatusCode(code)
 	c.SetContentType("text/plain")
-	_, err := fmt.Fprintf(c.w, message, a)
+	_, err := fmt.Fprintf(c.w, message, a...)
 	return err
 }
 
