@@ -8,9 +8,10 @@ import (
 )
 
 func main() {
-	master := *flag.String("m", "", "master address")
+	master := *flag.String("m", "", "master address(including port)")
 	addr := *flag.String("a", "", "node address")
+	port := *flag.String("p", "8080", "node port")
 	log.SetLevel(log.DEBUG)
-	n := node.NewNode(":8080", master, addr)
+	n := node.NewNode(port, master, addr)
 	n.Start()
 }

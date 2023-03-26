@@ -117,5 +117,5 @@ func (r *Router) MasterAddNode(c *Context) {
 		c.String(http.StatusBadRequest, "Bad Request: %q", err)
 		return
 	}
-
+	
 }
