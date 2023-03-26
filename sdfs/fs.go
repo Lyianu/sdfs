@@ -3,11 +3,8 @@ package sdfs
 import (
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"sync"
-
-	"github.com/Lyianu/sdfs/pkg/settings"
 )
 
 // FS represents local part of SDFS, it could contain multiple namespaces
@@ -248,7 +245,8 @@ func (f *FS) DeleteFile(path string) error {
 	defer f.mu.Unlock()
 	dir, _ := f.GetDir(path)
 	if file.SemaphoreReplica == 1 {
-		err := os.Remove(settings.DataPathPrefix + file.LocalPath)
+		// TODO: notify node to delete the file
+		// err := os.Remove(settings.DataPathPrefix + file.LocalPath)
 		delete(dir.Files, file.FSPath[0].FileName)
 		delete(f.ChecksumDB, file.Checksum)
 		return err

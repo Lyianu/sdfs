@@ -46,7 +46,7 @@ func TestFsGetDir(t *testing.T) {
 // test from main directory to get correct result
 func TestFsAddFile(t *testing.T) {
 	fs := NewFS()
-	err := fs.AddFile("/foo/bar", []byte("foobar"))
+	_, err := fs.AddFile("/foo/bar", "foobar")
 	if err != nil {
 		t.Fatalf("Got error when add file: %q", err)
 	}
@@ -72,14 +72,14 @@ func TestFsAddFile(t *testing.T) {
 // test from main directory to get correct result
 func TestFsGetFile(t *testing.T) {
 	fs := NewFS()
-	fs.AddFile("/foo/bar.go", []byte("foobar"))
+	fs.AddFile("/foo/bar.go", "foobar")
 	foo, err := fs.GetDir("/foo")
 	if err != nil {
 		t.Fatalf("Parent directory not exist")
 	}
 	if bar, err := fs.GetFile("/foo/bar.go"); err == nil {
 		if len(bar.FSPath) == 1 {
-			if bar.FSPath[0].FileName == "bar.go" && bar.FSPath[0].Parent == foo && bar.Size == uint64(len([]byte("foobar"))) {
+			if bar.FSPath[0].FileName == "bar.go" && bar.FSPath[0].Parent == foo && bar.Checksum == "foobar" {
 				return
 			}
 		} else {
@@ -96,7 +96,7 @@ func TestFsGetFile(t *testing.T) {
 // test from main directory to get correct result
 func TestFsDeleteFile(t *testing.T) {
 	fs := NewFS()
-	fs.AddFile("/foo/bar.go", []byte("foobar"))
+	fs.AddFile("/foo/bar.go", "123")
 	fs.DeleteFile("/foo/bar.go")
 	if _, err := fs.GetFile("/foo/bar.go"); err != nil {
 		if err.Error() == "file not exist" {
