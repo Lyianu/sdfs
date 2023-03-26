@@ -5,6 +5,7 @@ package raft
 import (
 	"context"
 	"errors"
+	"math/rand"
 	"net"
 	"strings"
 
@@ -49,6 +50,35 @@ func (s *Server) PeerAddr(id int32) string {
 		return ""
 	}
 	return addr
+}
+
+// NodeAddr returns the address of the node with the given id
+func (s *Server) NodeAddr(id int32) string {
+	s.cm.mu.Lock()
+	defer s.cm.mu.Unlock()
+	addr, ok := s.nodes[id]
+	if !ok {
+		return ""
+	}
+	return addr
+}
+
+// AddNode adds a node to the cluster
+func (s *Server) AddNode(addr string) error {
+	s.cm.mu.Lock()
+	defer s.cm.mu.Unlock()
+	ok := false
+	rnd := rand.Int31()
+	for !ok {
+		_, ok = s.nodes[rnd]
+		if !ok {
+			break
+		}
+		rnd = rand.Int31()
+	}
+	s.nodes[rnd] = addr
+	// TODO: return error on AE failure
+	return nil
 }
 
 // listen specifies the address at which server listens, connect specifies the

@@ -117,5 +117,11 @@ func (r *Router) MasterAddNode(c *Context) {
 		c.String(http.StatusBadRequest, "Bad Request: %q", err)
 		return
 	}
-	
+	err = raft.Raft.AddNode(request["host"].(string))
+	if err != nil {
+		log.Errorf("add node error: %q", err)
+		c.String(http.StatusInternalServerError, "Internal Server Error: %q", err)
+		return
+	}
+	c.String(http.StatusAccepted, "Success")
 }
