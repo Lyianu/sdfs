@@ -16,7 +16,7 @@ type Router struct {
 	downloads      map[string]*download
 	downloadsQueue []*download
 	mu             sync.RWMutex
-	masterAddr     string
+	MasterAddr     string
 }
 
 // addRoute adds route to the router

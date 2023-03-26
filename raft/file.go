@@ -14,6 +14,7 @@ type AddFileStruct struct {
 	PathLength int32
 	Host       []int32
 	Path       string
+	Hash       string
 }
 
 func AddFileStructToEntry(v interface{}) (e *Entry) {
@@ -25,6 +26,7 @@ func AddFileStructToEntry(v interface{}) (e *Entry) {
 		binary.Write(buf, binary.LittleEndian, v)
 	}
 	buf.Write([]byte(a.Path))
+	buf.Write([]byte(a.Hash))
 	e = &Entry{
 		Type: 2,
 		Data: buf.Bytes(),
@@ -43,12 +45,15 @@ func EntryToAddFileStruct(e *Entry) interface{} {
 		a.Host = append(a.Host, host)
 	}
 	path, _ := io.ReadAll(r)
+	hash := path[a.PathLength:]
+	path = path[:a.PathLength]
 	a.Path = string(path)
+	a.Hash = string(hash)
 	return a
 }
 
 func AddFileExecutor(v interface{}) {
 	a := v.(AddFileStruct)
 	log.Debugf("adding file from AppendEntries rpc call, file: %q", a.Path)
-	sdfs.Fs.AddFile()
+	sdfs.Fs.AddFile(a.Path)
 }

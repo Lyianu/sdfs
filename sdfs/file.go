@@ -10,7 +10,6 @@ import (
 // are needed
 type File struct {
 	Checksum  string
-	LocalPath string
 	// FSPath contains logical position of the file
 	FSPath           []Location
 	SemaphoreOpen    uint32
@@ -37,14 +36,13 @@ func (f *File) Paths() (paths []string) {
 }
 
 // NewFile creates a new file with given parameters
-func NewFile(name, checksum, localPath string, fileSize uint64, parent *Directory) *File {
+func NewFile(name, checksum string, fileSize uint64, parent *Directory) *File {
 	f := new(File)
 	f.Checksum = checksum
 	f.FSPath = append(f.FSPath, Location{
 		Parent:   parent,
 		FileName: name,
 	})
-	f.LocalPath = checksum
 	f.SemaphoreOpen = 0
 	f.SemaphoreReplica = 1
 	f.Size = fileSize

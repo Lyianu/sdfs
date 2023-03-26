@@ -18,7 +18,7 @@ import (
 func NewRouter(master string) *Router {
 	r := &Router{
 		routes:     make(map[string]HandleFunc),
-		masterAddr: master,
+		MasterAddr: master,
 	}
 	r.addRoute(http.MethodPost, URLUpload, r.Upload)
 	r.addRoute(http.MethodGet, URLDownload, r.Download)
@@ -46,7 +46,7 @@ func (r *Router) Upload(c *Context) {
 	}
 
 	// report to master
-	HTTPUploadCallback(r.masterAddr, id, hash)
+	HTTPUploadCallback(r.MasterAddr, id, hash)
 
 	c.String(http.StatusAccepted, "Success")
 }

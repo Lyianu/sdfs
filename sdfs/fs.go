@@ -1,7 +1,6 @@
 package sdfs
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -9,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/Lyianu/sdfs/pkg/settings"
-	"github.com/codingsince1985/checksum"
 )
 
 // FS represents local part of SDFS, it could contain multiple namespaces
@@ -65,27 +63,21 @@ func ParseFileName(filePath string) string {
 
 // AddFile adds file to the FS, it first stores the data in the local disk
 // after that it adds an entry to the FS's db
-func (f *FS) AddFile(path string, data []byte) error {
-	c, err := checksum.SHA256sumReader(bytes.NewReader(data))
-
-	if err != nil {
-		return err
-	}
-
+func (f *FS) AddFile(path string, hash string) (*File, error) {
 	f.AddDir(path[:strings.LastIndex(path, "/")])
 	dir, _ := f.GetFileParent(path)
 	fname := ParseFileName(path)
 
 	// first check if there is a different file at the given path
 	if file, err := f.GetFile(path); err == nil {
-		if file.Checksum != c {
-			return fmt.Errorf("a file with different checksum exists at %s", path)
+		if file.Checksum != hash {
+			return nil, fmt.Errorf("a file with different checksum exists at %s", path)
 		}
 	}
 	f.mu.Lock()
 	// if there is not, check if there is a same file in the SDFS namespace,
 	// but with a different path
-	if file, ok := f.ChecksumDB[c]; ok {
+	if file, ok := f.ChecksumDB[hash]; ok {
 		// same file has been added to the SDFS namespace, but the path might
 		// be different
 		fp := file.Paths()
@@ -93,7 +85,7 @@ func (f *FS) AddFile(path string, data []byte) error {
 			// if already exists
 			if p == path {
 				f.mu.Unlock()
-				return nil
+				return file, nil
 			}
 		}
 		// if file exists at another path, create a replica at the given path
@@ -106,17 +98,13 @@ func (f *FS) AddFile(path string, data []byte) error {
 		file.mu.Unlock()
 		f.mu.Unlock()
 
-		return nil
+		return file, nil
 	}
 	f.mu.Unlock()
-	// no file with the same checksum exists, write a new one
-	err = os.WriteFile(settings.DataPathPrefix+c, data, 0644)
-	if err != nil {
-		return err
-	}
-	file := NewFile(fname, c, path, uint64(len(data)), dir)
+	// no file with the same checksum exists, create a new one
+	file := NewFile(fname, hash, 0, dir)
 	dir.Files[fname] = file
-	f.ChecksumDB[c] = file
+	f.ChecksumDB[hash] = file
 
 	for dir != f.Roots[0] {
 		dir.Size += file.Size
@@ -124,7 +112,7 @@ func (f *FS) AddFile(path string, data []byte) error {
 	}
 	dir.Size += file.Size
 
-	return nil
+	return file, nil
 }
 
 func (f *FS) MustAddFile(path string, data []byte) {

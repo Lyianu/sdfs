@@ -25,7 +25,12 @@ type Server struct {
 	grpcServer *grpc.Server
 	addr       string
 
-	peers map[int32]RaftClient
+	peers    map[int32]RaftClient
+	peerAddr map[int32]string
+
+	// master's view of a node
+	// a node is represented by a integer, its address is a string in the map
+	nodes map[int32]string
 
 	// sdfs as raft client
 	FS *sdfs.FS
@@ -33,6 +38,17 @@ type Server struct {
 
 func (s *Server) CM() *ConsensusModule {
 	return s.cm
+}
+
+// PeerAddr returns the address of the peer with the given id
+func (s *Server) PeerAddr(id int32) string {
+	s.cm.mu.Lock()
+	defer s.cm.mu.Unlock()
+	addr, ok := s.peerAddr[id]
+	if !ok {
+		return ""
+	}
+	return addr
 }
 
 // listen specifies the address at which server listens, connect specifies the
@@ -126,6 +142,7 @@ func (s *Server) RegisterMaster(ctx context.Context, req *RegisterMasterRequest)
 		}
 	}
 	s.peers[new_id] = NewRaftClient(c)
+	s.peerAddr[new_id] = req.MasterAddr
 	s.cm.peerIds = append(s.cm.peerIds, new_id)
 
 	resp := &RegisterMasterResponse{

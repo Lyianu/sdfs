@@ -11,6 +11,8 @@ const (
 	URLSDFSDelete = "/api/sdfs/delete"
 	// path for sdfs master to request upload
 	URLSDFSUpload = "/api/sdfs/upload"
+	// path for sdfs master to add node server
+	URLSDFSRegisterNode = "/api/sdfs/register"
 
 	URLSDFSWrite = "/api/sdfs/write"
 	URLWrite     = "/api/write"
