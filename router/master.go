@@ -125,3 +125,34 @@ func (r *Router) MasterAddNode(c *Context) {
 	}
 	c.String(http.StatusAccepted, "Success")
 }
+
+func (r *Router) HeartbeatHandler(c *Context) {
+	if raft.Raft.CM().State() != raft.LEADER {
+		leader := raft.Raft.PeerAddr(raft.Raft.CM().CurrentLeader())
+		c.String(http.StatusTemporaryRedirect, leader)
+		log.Debugf("heartbeat sent to the wrong master, redirecting to %s", leader)
+		return
+	}
+	request := H{
+		"host":   "",
+		"cpu":    0,
+		"size":   0,
+		"memory": 0,
+		"disk":   0,
+	}
+	b, err := io.ReadAll(c.req.Body)
+	if err != nil {
+		log.Errorf("heartbeat error opening request body: %q", err)
+		c.String(http.StatusBadRequest, "Bad Request: %q", err)
+		return
+	}
+	defer c.req.Body.Close()
+	err = json.Unmarshal(b, &request)
+	if err != nil {
+		log.Errorf("heartbeat error parsing request: %q", err)
+		c.String(http.StatusBadRequest, "Bad Request: %q", err)
+		return
+	}
+	// TODO: update node info
+	c.String(http.StatusAccepted, "Success")
+}

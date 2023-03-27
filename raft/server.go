@@ -31,7 +31,8 @@ type Server struct {
 
 	// master's view of a node
 	// a node is represented by a integer, its address is a string in the map
-	nodes map[int32]string
+	nodes    map[int32]*Node
+	nodeAddr map[string]*Node
 
 	// sdfs as raft client
 	FS *sdfs.FS
@@ -51,6 +52,9 @@ type Node struct {
 	Size     int64 // size already used by hashstore
 	Disk     int64 // remaining disk space
 	RX, TX   int64
+
+	// timestamp of the last heartheat
+	LastHeartbeat int64
 }
 
 func (s *Server) CM() *ConsensusModule {

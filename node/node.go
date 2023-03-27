@@ -82,7 +82,7 @@ func (n *Node) SendHeartbeat(url string) error {
 		return err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode == http.StatusTemporaryRedirect {
 		b, err := io.ReadAll(resp.Body)
 		if err != nil {
 			log.Errorf("failed to read response: %s", err)
