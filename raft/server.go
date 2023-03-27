@@ -80,13 +80,21 @@ func (s *Server) NodeAddr(id int32) string {
 	if !ok {
 		return ""
 	}
-	return addr
+	return addr.Addr
 }
 
-// AddNode adds a node to the cluster
-func (s *Server) AddNode(addr string) error {
+// UpdateNode updates node's info
+func (s *Server) UpdateNode(addr string, cpu, memory float64, size, disk int64) error {
 	s.cm.mu.Lock()
 	defer s.cm.mu.Unlock()
+	if _, ok := s.nodeAddr[addr]; ok {
+		s.nodeAddr[addr].CpuUsage = cpu
+		s.nodeAddr[addr].MemUsage = memory
+		s.nodeAddr[addr].Size = size
+		s.nodeAddr[addr].Disk = disk
+		return nil
+	}
+
 	ok := false
 	rnd := rand.Int31()
 	for !ok {
@@ -96,7 +104,17 @@ func (s *Server) AddNode(addr string) error {
 		}
 		rnd = rand.Int31()
 	}
-	s.nodes[rnd] = addr
+
+	n := &Node{
+		Addr:     addr,
+		ID:       rnd,
+		CpuUsage: cpu,
+		MemUsage: memory,
+		Size:     size,
+		Disk:     disk,
+	}
+	s.nodes[rnd] = n
+	s.nodeAddr[addr] = n
 	// TODO: return error on AE failure
 	return nil
 }
