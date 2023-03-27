@@ -84,7 +84,7 @@ func (s *Server) NodeAddr(id int32) string {
 }
 
 // UpdateNode updates node's info
-func (s *Server) UpdateNode(addr string, cpu, memory float64, size, disk int64) error {
+func (s *Server) UpdateNode(addr string, cpu, memory float64, size, disk int64) (error, string) {
 	s.cm.mu.Lock()
 	defer s.cm.mu.Unlock()
 	if _, ok := s.nodeAddr[addr]; ok {
@@ -92,10 +92,9 @@ func (s *Server) UpdateNode(addr string, cpu, memory float64, size, disk int64) 
 		s.nodeAddr[addr].MemUsage = memory
 		s.nodeAddr[addr].Size = size
 		s.nodeAddr[addr].Disk = disk
-		return nil
+		return nil, ""
 	}
 
-	// TODO: if node is not present, add it to the whole cluster by AE
 	ok := false
 	rnd := rand.Int31()
 	for !ok {
@@ -116,8 +115,15 @@ func (s *Server) UpdateNode(addr string, cpu, memory float64, size, disk int64) 
 	}
 	s.nodes[rnd] = n
 	s.nodeAddr[addr] = n
-	// TODO: return error on AE failure
-	return nil
+	res, id := s.cm.Submit(AddNodeStruct{
+		ID:       rnd,
+		NodeAddr: addr,
+	})
+	if !res {
+
+		return errors.New("failed to add node to cluster"), Raft.PeerAddr(id)
+	}
+	return nil, ""
 }
 
 // listen specifies the address at which server listens, connect specifies the
