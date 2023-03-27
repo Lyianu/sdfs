@@ -37,6 +37,22 @@ type Server struct {
 	FS *sdfs.FS
 }
 
+// struct Node is the master's view of a node
+// it is assumed that tha address of a Node is static so that master can use
+// it to find its id
+type Node struct {
+	Addr string
+	ID   int32
+
+	// node status (updated by node via POSTing)
+	// only LEADER has up-to-date info to decide which node to store a file
+	CpuUsage float64
+	MemUsage float64
+	Size     int64 // size already used by hashstore
+	Disk     int64 // remaining disk space
+	RX, TX   int64
+}
+
 func (s *Server) CM() *ConsensusModule {
 	return s.cm
 }

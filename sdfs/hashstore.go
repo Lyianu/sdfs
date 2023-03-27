@@ -32,6 +32,12 @@ type file struct {
 	Size      int64
 }
 
+func (h *HashStore) GetSize() int64 {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.Size
+}
+
 func NewHashStore() *HashStore {
 	h := &HashStore{
 		s:    make(map[string]*file),
