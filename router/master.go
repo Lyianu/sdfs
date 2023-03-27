@@ -153,6 +153,11 @@ func (r *Router) HeartbeatHandler(c *Context) {
 		c.String(http.StatusBadRequest, "Bad Request: %q", err)
 		return
 	}
-	// TODO: update node info
+	err = raft.Raft.UpdateNode(request["host"].(string), request["cpu"].(float64), request["size"].(int64), request["memory"].(float64), request["disk"].(int64))
+	if err != nil {
+		log.Errorf("heartbeat error: %q", err)
+		c.String(http.StatusInternalServerError, "Internal Server Error: %q", err)
+		return
+	}
 	c.String(http.StatusAccepted, "Success")
 }
