@@ -93,39 +93,6 @@ func HTTPUploadCallbackServer(c *Context) {
 	c.String(http.StatusAccepted, "Success")
 }
 
-// MasterAddNode adds a new node to the master cluster
-func (r *Router) MasterAddNode(c *Context) {
-	if raft.Raft.CM().State() != raft.LEADER {
-		leader := raft.Raft.PeerAddr(raft.Raft.CM().CurrentLeader())
-		c.String(http.StatusTemporaryRedirect, leader)
-		log.Debugf("add node sent to the wrong master, redirecting to %s", leader)
-		return
-	}
-	request := H{
-		"host": "",
-	}
-	b, err := io.ReadAll(c.req.Body)
-	if err != nil {
-		log.Errorf("add node error opening request body: %q", err)
-		c.String(http.StatusBadRequest, "Bad Request: %q", err)
-		return
-	}
-	defer c.req.Body.Close()
-	err = json.Unmarshal(b, &request)
-	if err != nil {
-		log.Errorf("add node error parsing request: %q", err)
-		c.String(http.StatusBadRequest, "Bad Request: %q", err)
-		return
-	}
-	err = raft.Raft.AddNode(request["host"].(string))
-	if err != nil {
-		log.Errorf("add node error: %q", err)
-		c.String(http.StatusInternalServerError, "Internal Server Error: %q", err)
-		return
-	}
-	c.String(http.StatusAccepted, "Success")
-}
-
 func (r *Router) HeartbeatHandler(c *Context) {
 	if raft.Raft.CM().State() != raft.LEADER {
 		leader := raft.Raft.PeerAddr(raft.Raft.CM().CurrentLeader())
@@ -153,7 +120,7 @@ func (r *Router) HeartbeatHandler(c *Context) {
 		c.String(http.StatusBadRequest, "Bad Request: %q", err)
 		return
 	}
-	err = raft.Raft.UpdateNode(request["host"].(string), request["cpu"].(float64), request["size"].(int64), request["memory"].(float64), request["disk"].(int64))
+	err = raft.Raft.UpdateNode(request["host"].(string), request["cpu"].(float64), request["memory"].(float64), request["size"].(int64), request["disk"].(int64))
 	if err != nil {
 		log.Errorf("heartbeat error: %q", err)
 		c.String(http.StatusInternalServerError, "Internal Server Error: %q", err)
