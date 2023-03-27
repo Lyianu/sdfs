@@ -31,6 +31,7 @@ func init() {
 	entryCmdId = make(map[int32]reflect.Type)
 	cmdIdExecutor = make(map[int32]CmdExecutor)
 
+	RegisterCommandConversionHandler(3, AddNodeStruct{}, AddNodeStructToEntry, EntryToAddNodeStruct, AddNodeExecutor)
 	RegisterCommandConversionHandler(1, AddServerStruct{}, AddServerStructToEntry, EntryToAddServerStruct, AddServerExecutor)
 }
 

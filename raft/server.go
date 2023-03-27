@@ -86,12 +86,12 @@ func (s *Server) NodeAddr(id int32) string {
 // UpdateNode updates node's info
 func (s *Server) UpdateNode(addr string, cpu, memory float64, size, disk int64) (error, string) {
 	s.cm.mu.Lock()
-	defer s.cm.mu.Unlock()
 	if _, ok := s.nodeAddr[addr]; ok {
 		s.nodeAddr[addr].CpuUsage = cpu
 		s.nodeAddr[addr].MemUsage = memory
 		s.nodeAddr[addr].Size = size
 		s.nodeAddr[addr].Disk = disk
+		s.cm.mu.Unlock()
 		return nil, ""
 	}
 
@@ -115,6 +115,7 @@ func (s *Server) UpdateNode(addr string, cpu, memory float64, size, disk int64) 
 	}
 	s.nodes[rnd] = n
 	s.nodeAddr[addr] = n
+	s.cm.mu.Unlock()
 	res, id := s.cm.Submit(AddNodeStruct{
 		ID:       rnd,
 		NodeAddr: addr,
