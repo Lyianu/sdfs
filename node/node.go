@@ -52,10 +52,18 @@ func (n *Node) Start() error {
 }
 
 func (n *Node) SendHeartbeat(url string) error {
+	log.Debugf("sending heartbeat to %s", url)
 	v, err := mem.VirtualMemory()
+	if err != nil {
+		log.Errorf("failed to get info: %s", err)
+		return err
+	}
 	d, err := disk.Usage(settings.DataPathPrefix)
+	if err != nil {
+		log.Errorf("failed to get info: %s", err)
+		return err
+	}
 	c, err := cpu.Percent(time.Second, false)
-
 	if err != nil {
 		log.Errorf("failed to get info: %s", err)
 		return err
@@ -64,11 +72,11 @@ func (n *Node) SendHeartbeat(url string) error {
 	size := n.HS.GetSize()
 
 	request := router.H{
-		"host":   n.Addr + n.Port,
+		"host":   fmt.Sprintf("%s:%s", n.Addr, n.Port),
 		"cpu":    c[0],
 		"size":   size,
 		"memory": v.UsedPercent,
-		"disk":   d.Free,
+		"disk":   int64(d.Free),
 	}
 	j, err := json.Marshal(request)
 	if err != nil {
@@ -93,13 +101,14 @@ func (n *Node) SendHeartbeat(url string) error {
 		// stored in the node
 		return n.SendHeartbeat(u)
 	}
+	log.Debugf("heartbeat response status: %d", resp.StatusCode)
 
 	return nil
 }
 
 func (n *Node) StartHeartbeat() {
 	ticker := time.NewTicker(1 * time.Second)
-	url := n.r.MasterAddr + router.URLSDFSHeartbeat
+	url := router.URLSDFSScheme + n.r.MasterAddr + router.URLSDFSHeartbeat
 	for {
 		<-ticker.C
 

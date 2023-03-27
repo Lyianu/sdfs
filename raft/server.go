@@ -95,6 +95,7 @@ func (s *Server) UpdateNode(addr string, cpu, memory float64, size, disk int64) 
 		return nil
 	}
 
+	// TODO: if node is not present, add it to the whole cluster by AE
 	ok := false
 	rnd := rand.Int31()
 	for !ok {
@@ -135,6 +136,9 @@ func NewServer(listen, connect, addr string) (*Server, error) {
 		grpcServer: grpc.NewServer(),
 		addr:       addr,
 		peers:      make(map[int32]RaftClient),
+		peerAddr:   make(map[int32]string),
+		nodes:      make(map[int32]*Node),
+		nodeAddr:   make(map[string]*Node),
 		FS:         sdfs.NewFS(),
 	}
 	s.cm.server = s

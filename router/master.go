@@ -17,6 +17,8 @@ func NewMasterRouter() *Router {
 	r := &Router{
 		routes: make(map[string]HandleFunc),
 	}
+	r.addRoute("POST", URLSDFSHeartbeat, r.HeartbeatHandler)
+	r.addRoute("GET", URLSDFSDownload, r.MasterDownload)
 	return r
 }
 
@@ -100,13 +102,13 @@ func (r *Router) HeartbeatHandler(c *Context) {
 		log.Debugf("heartbeat sent to the wrong master, redirecting to %s", leader)
 		return
 	}
-	request := H{
-		"host":   "",
-		"cpu":    0,
-		"size":   0,
-		"memory": 0,
-		"disk":   0,
-	}
+	request := struct {
+		Host   string  `json:"host"`
+		CPU    float64 `json:"cpu"`
+		Size   int64   `json:"size"`
+		Memory float64 `json:"memory"`
+		Disk   int64   `json:"disk"`
+	}{}
 	b, err := io.ReadAll(c.req.Body)
 	if err != nil {
 		log.Errorf("heartbeat error opening request body: %q", err)
@@ -120,7 +122,8 @@ func (r *Router) HeartbeatHandler(c *Context) {
 		c.String(http.StatusBadRequest, "Bad Request: %q", err)
 		return
 	}
-	err = raft.Raft.UpdateNode(request["host"].(string), request["cpu"].(float64), request["memory"].(float64), request["size"].(int64), request["disk"].(int64))
+	log.Debugf("heartbeat received from %s", request.Host)
+	err = raft.Raft.UpdateNode(request.Host, request.CPU, request.Memory, request.Size, request.Disk)
 	if err != nil {
 		log.Errorf("heartbeat error: %q", err)
 		c.String(http.StatusInternalServerError, "Internal Server Error: %q", err)

@@ -18,4 +18,7 @@ const (
 	URLWrite     = "/api/write"
 
 	URLUploadCallback = "/api/callback/upload"
+
+	// the scheme that sdfs master uses, http or https
+	URLSDFSScheme = "http://"
 )

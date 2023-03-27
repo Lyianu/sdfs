@@ -5,4 +5,5 @@ design.md
 runNode.bat
 runMaster.bat
 buildMasterLinuxx64.bat
+buildNodeLinuxx64.bat
 main
