@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/Lyianu/sdfs/log"
+	"github.com/Lyianu/sdfs/pkg/pqueue"
 	"github.com/Lyianu/sdfs/pkg/settings"
 	"github.com/Lyianu/sdfs/sdfs"
 	"google.golang.org/grpc"
@@ -34,6 +35,8 @@ type Server struct {
 	nodes    map[int32]*Node
 	nodeAddr map[string]*Node
 
+	uploadNodes *pqueue.PQueue
+
 	// sdfs as raft client
 	FS *sdfs.FS
 }
@@ -55,6 +58,11 @@ type Node struct {
 
 	// timestamp of the last heartheat
 	LastHeartbeat int64
+}
+
+// Node implements Priorityer
+func (n *Node) Priority() int {
+	return int(n.Disk)
 }
 
 func (s *Server) CM() *ConsensusModule {
@@ -139,14 +147,15 @@ func NewServer(listen, connect, addr string) (*Server, error) {
 	}
 	rdy := make(chan struct{})
 	s := &Server{
-		cm:         NewConsensusModule(rdy),
-		grpcServer: grpc.NewServer(),
-		addr:       addr,
-		peers:      make(map[int32]RaftClient),
-		peerAddr:   make(map[int32]string),
-		nodes:      make(map[int32]*Node),
-		nodeAddr:   make(map[string]*Node),
-		FS:         sdfs.NewFS(),
+		cm:          NewConsensusModule(rdy),
+		grpcServer:  grpc.NewServer(),
+		addr:        addr,
+		peers:       make(map[int32]RaftClient),
+		peerAddr:    make(map[int32]string),
+		nodes:       make(map[int32]*Node),
+		nodeAddr:    make(map[string]*Node),
+		FS:          sdfs.NewFS(),
+		uploadNodes: pqueue.NewPQueue(),
 	}
 	s.cm.server = s
 	Raft = s
