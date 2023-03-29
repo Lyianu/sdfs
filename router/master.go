@@ -21,6 +21,7 @@ func NewMasterRouter() *Router {
 	r.addRoute("POST", settings.URLSDFSHeartbeat, r.HeartbeatHandler)
 	r.addRoute("GET", settings.URLSDFSDownload, r.MasterDownload)
 	r.addRoute("GET", settings.URLSDFSUpload, r.MasterRequestUpload)
+	r.addRoute("POST", settings.URLUploadCallback, HTTPUploadCallbackServer)
 	return r
 }
 
@@ -62,6 +63,7 @@ func (r *Router) MasterRequestUpload(c *Context) {
 	}
 	id, node, err := raft.Raft.UploadMngr.AddUpload(path)
 	if err != nil {
+		// TODO: return error type to the client
 		log.Errorf("reqeust upload error: %q", err)
 		c.String(http.StatusInternalServerError, "Internal Server Error")
 		return

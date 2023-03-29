@@ -166,11 +166,12 @@ func HTTPUploadCallback(masterAddr, id, hash, host string) error {
 	}
 	url := string(result)
 	if resp.StatusCode != http.StatusOK {
+		log.Errorf("upload callback statuscode mismatch, get: %d, exoected: %d", resp.StatusCode, http.StatusOK)
 		return HTTPUploadCallback(url, id, hash, host)
 	}
 	return nil
 }
 
 func (r *Router) DebugPrintHS(c *Context) {
-	c.String(http.StatusOK, "%d", sdfs.Hs.Size)
+	c.String(http.StatusOK, "HSSize: %d\nMasterAddr: %s, NodeAddr: %s", sdfs.Hs.Size, r.MasterAddr, r.NodeAddr)
 }
