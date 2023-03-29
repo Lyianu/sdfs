@@ -6,6 +6,7 @@ import (
 
 	"github.com/Lyianu/sdfs/pkg/pqueue"
 	"github.com/Lyianu/sdfs/pkg/util"
+	"github.com/Lyianu/sdfs/sdfs"
 )
 
 type uploadManager struct {
@@ -14,6 +15,8 @@ type uploadManager struct {
 	uploads map[string]upload
 
 	pending map[string]pendingKey
+
+	svr *Server
 
 	mu sync.Mutex
 }
@@ -69,7 +72,9 @@ func (u *uploadManager) FinishUpload(id string) error {
 	if !ok {
 		return errors.New("upload not found")
 	}
-	// TODO: SDFS.AddFile
+	sdfs.Fs.AddFile(up.Path, up.Hash)
+	f, _ := sdfs.Fs.GetFile(up.Path)
+	f.Host = append(f.Host, u.svr.NodeID(up.Host))
 	delete(u.uploads, id)
 	delete(u.pending, up.Path)
 	return nil

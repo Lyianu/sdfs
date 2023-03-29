@@ -91,6 +91,16 @@ func (s *Server) NodeAddr(id int32) string {
 	return addr.Addr
 }
 
+func (s *Server) NodeID(addr string) int32 {
+	s.cm.mu.Lock()
+	defer s.cm.mu.Unlock()
+	n, ok := s.nodeAddr[addr]
+	if !ok {
+		return -1
+	}
+	return n.ID
+}
+
 // UpdateNode updates node's info
 func (s *Server) UpdateNode(addr string, cpu, memory float64, size, disk int64) (error, string) {
 	s.cm.mu.Lock()
@@ -158,6 +168,7 @@ func NewServer(listen, connect, addr string) (*Server, error) {
 		FS:         sdfs.NewFS(),
 		uploadMngr: newUploadManager(),
 	}
+	s.uploadMngr.svr = s
 	s.cm.server = s
 	Raft = s
 

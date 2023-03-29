@@ -9,7 +9,7 @@ import (
 // File object if they have the same checksum, in this case semaphores
 // are needed
 type File struct {
-	Checksum  string
+	Checksum string
 	// FSPath contains logical position of the file
 	FSPath           []Location
 	SemaphoreOpen    uint32
@@ -17,7 +17,7 @@ type File struct {
 	Size             uint64
 
 	// Host contains hosts that has this file in their hashstores
-	Host []string
+	Host []int32
 
 	mu sync.Mutex
 }
