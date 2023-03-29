@@ -46,6 +46,15 @@ func (r *Router) MasterDownload(c *Context) {
 	c.String(http.StatusOK, url)
 }
 
+// MasterRequestUpload is called when a client wants to upload a file to the
+// SDFS. It will contact the Node server and request a file upload
+// Node server with most spare space will be selected
+// TODO: with upload spikes Node server could be "penetrated"
+// maintain 2 Pqueues to split "busy" servers and "idle" servers to fix
+func (r *Router) MasterRequestUpload(c *Context) {
+
+}
+
 // HTTP API, could be refactored to use RPC in the future
 // HTTPGetFileDownloadAddress contacts Node server so that requested file will
 // be exposed, then it returns the URL of the requested file

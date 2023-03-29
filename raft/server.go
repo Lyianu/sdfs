@@ -129,9 +129,10 @@ func (s *Server) UpdateNode(addr string, cpu, memory float64, size, disk int64) 
 		NodeAddr: addr,
 	})
 	if !res {
-
 		return errors.New("failed to add node to cluster"), Raft.PeerAddr(id)
 	}
+	// add node to priority queue for later use
+	s.uploadNodes.Push(n)
 	return nil, ""
 }
 
