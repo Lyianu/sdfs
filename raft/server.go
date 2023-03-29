@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/Lyianu/sdfs/log"
-	"github.com/Lyianu/sdfs/pkg/pqueue"
 	"github.com/Lyianu/sdfs/pkg/settings"
 	"github.com/Lyianu/sdfs/sdfs"
 	"google.golang.org/grpc"
@@ -35,7 +34,7 @@ type Server struct {
 	nodes    map[int32]*Node
 	nodeAddr map[string]*Node
 
-	uploadNodes *pqueue.PQueue
+	uploadMngr *uploadManager
 
 	// sdfs as raft client
 	FS *sdfs.FS
@@ -61,7 +60,8 @@ type Node struct {
 }
 
 // Node implements Priorityer
-func (n *Node) Priority() int {
+// TODO: potential overflow
+func (n Node) Priority() int {
 	return int(n.Disk)
 }
 
@@ -132,7 +132,7 @@ func (s *Server) UpdateNode(addr string, cpu, memory float64, size, disk int64) 
 		return errors.New("failed to add node to cluster"), Raft.PeerAddr(id)
 	}
 	// add node to priority queue for later use
-	s.uploadNodes.Push(n)
+	s.uploadMngr.uploadNodes.Push(n)
 	return nil, ""
 }
 
@@ -148,15 +148,15 @@ func NewServer(listen, connect, addr string) (*Server, error) {
 	}
 	rdy := make(chan struct{})
 	s := &Server{
-		cm:          NewConsensusModule(rdy),
-		grpcServer:  grpc.NewServer(),
-		addr:        addr,
-		peers:       make(map[int32]RaftClient),
-		peerAddr:    make(map[int32]string),
-		nodes:       make(map[int32]*Node),
-		nodeAddr:    make(map[string]*Node),
-		FS:          sdfs.NewFS(),
-		uploadNodes: pqueue.NewPQueue(),
+		cm:         NewConsensusModule(rdy),
+		grpcServer: grpc.NewServer(),
+		addr:       addr,
+		peers:      make(map[int32]RaftClient),
+		peerAddr:   make(map[int32]string),
+		nodes:      make(map[int32]*Node),
+		nodeAddr:   make(map[string]*Node),
+		FS:         sdfs.NewFS(),
+		uploadMngr: newUploadManager(),
 	}
 	s.cm.server = s
 	Raft = s

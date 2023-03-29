@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/Lyianu/sdfs/log"
+	"github.com/Lyianu/sdfs/pkg/util"
 	"github.com/Lyianu/sdfs/raft"
 	"github.com/Lyianu/sdfs/sdfs"
 )
@@ -52,7 +53,13 @@ func (r *Router) MasterDownload(c *Context) {
 // TODO: with upload spikes Node server could be "penetrated"
 // maintain 2 Pqueues to split "busy" servers and "idle" servers to fix
 func (r *Router) MasterRequestUpload(c *Context) {
-
+	uploadID := util.RandomString(16)
+	path := c.Query("path")
+	if path == "" {
+		c.String(http.StatusBadRequest, "Bad Request")
+		return
+	}
+	
 }
 
 // HTTP API, could be refactored to use RPC in the future
