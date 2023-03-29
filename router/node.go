@@ -20,6 +20,7 @@ func NewRouter(master string, node string) *Router {
 		routes:     make(map[string]HandleFunc),
 		MasterAddr: master,
 		NodeAddr:   node,
+		uploads:    make(map[string]struct{}),
 	}
 	r.addRoute(http.MethodPost, settings.URLUpload, r.Upload)
 	r.addRoute(http.MethodGet, settings.URLDownload, r.Download)
@@ -140,7 +141,7 @@ func (r *Router) AddDownload(c *Context) {
 }
 
 func HTTPUploadCallback(masterAddr, id, hash, host string) error {
-	addr := masterAddr + settings.URLUploadCallback
+	addr := settings.URLSDFSScheme + masterAddr + settings.URLUploadCallback
 	request := H{
 		"id":   id,
 		"hash": hash,

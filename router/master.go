@@ -20,6 +20,7 @@ func NewMasterRouter() *Router {
 	}
 	r.addRoute("POST", settings.URLSDFSHeartbeat, r.HeartbeatHandler)
 	r.addRoute("GET", settings.URLSDFSDownload, r.MasterDownload)
+	r.addRoute("GET", settings.URLSDFSUpload, r.MasterRequestUpload)
 	return r
 }
 

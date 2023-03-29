@@ -1,6 +1,8 @@
 package pqueue
 
-import "sync"
+import (
+	"sync"
+)
 
 // PQueue is a priority queue implementation, it is concurrent safe
 type PQueue struct {

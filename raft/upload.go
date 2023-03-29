@@ -50,7 +50,7 @@ func (u *uploadManager) AddUpload(path string) (id, node string, err error) {
 		return "", "", errors.New("upload already in progress")
 	}
 	u.pending[path] = pendingKey{}
-	n, ok := u.uploadNodes.First().(Node)
+	n, ok := u.uploadNodes.First().(*Node)
 	if !ok {
 		return "", "", errors.New("no nodes available")
 	}
@@ -67,7 +67,7 @@ func (u *uploadManager) AddUpload(path string) (id, node string, err error) {
 	u.uploads[rnd] = up
 	u.pending[path] = pendingKey{}
 
-	url := fmt.Sprintf("%s%s/%s?id=%s", settings.URLSDFSScheme, n.Addr, settings.URLSDFSUpload, rnd)
+	url := fmt.Sprintf("%s%s%s?id=%s", settings.URLSDFSScheme, n.Addr, settings.URLSDFSUpload, rnd)
 	resp, err := http.Get(url)
 	if err != nil {
 		log.Errorf("add upload error: %q", err)
@@ -75,7 +75,7 @@ func (u *uploadManager) AddUpload(path string) (id, node string, err error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		log.Errorf("add upload error, node resp: %d, expected: %d", resp.StatusCode, http.StatusOK)
+		log.Errorf("add upload error, node resp: %d, expected: %d, url: %s", resp.StatusCode, http.StatusOK, url)
 		return "", "", errors.New("failed to add upload, node resp not ok")
 	}
 	return rnd, n.Addr, nil
