@@ -35,7 +35,7 @@ func NewNode(port string, masterAddr string, addr string) *Node {
 		HS = sdfs.NewHashStore()
 	}
 	n := &Node{
-		r:    router.NewRouter(masterAddr),
+		r:    router.NewRouter(masterAddr, addr+":"+port),
 		Port: port,
 		HS:   HS,
 		Addr: addr,
@@ -108,7 +108,7 @@ func (n *Node) SendHeartbeat(url string) error {
 
 func (n *Node) StartHeartbeat() {
 	ticker := time.NewTicker(1 * time.Second)
-	url := router.URLSDFSScheme + n.r.MasterAddr + router.URLSDFSHeartbeat
+	url := settings.URLSDFSScheme + n.r.MasterAddr + settings.URLSDFSHeartbeat
 	for {
 		<-ticker.C
 

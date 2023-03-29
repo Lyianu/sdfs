@@ -34,7 +34,7 @@ type Server struct {
 	nodes    map[int32]*Node
 	nodeAddr map[string]*Node
 
-	uploadMngr *uploadManager
+	UploadMngr *uploadManager
 
 	// sdfs as raft client
 	FS *sdfs.FS
@@ -142,7 +142,7 @@ func (s *Server) UpdateNode(addr string, cpu, memory float64, size, disk int64) 
 		return errors.New("failed to add node to cluster"), Raft.PeerAddr(id)
 	}
 	// add node to priority queue for later use
-	s.uploadMngr.uploadNodes.Push(n)
+	s.UploadMngr.uploadNodes.Push(n)
 	return nil, ""
 }
 
@@ -166,9 +166,9 @@ func NewServer(listen, connect, addr string) (*Server, error) {
 		nodes:      make(map[int32]*Node),
 		nodeAddr:   make(map[string]*Node),
 		FS:         sdfs.NewFS(),
-		uploadMngr: newUploadManager(),
+		UploadMngr: newUploadManager(),
 	}
-	s.uploadMngr.svr = s
+	s.UploadMngr.svr = s
 	s.cm.server = s
 	Raft = s
 

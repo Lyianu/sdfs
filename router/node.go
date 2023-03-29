@@ -15,16 +15,35 @@ import (
 )
 
 // NewRouter returns a router with sdfs routes
-func NewRouter(master string) *Router {
+func NewRouter(master string, node string) *Router {
 	r := &Router{
 		routes:     make(map[string]HandleFunc),
 		MasterAddr: master,
+		NodeAddr:   node,
 	}
-	r.addRoute(http.MethodPost, URLUpload, r.Upload)
-	r.addRoute(http.MethodGet, URLDownload, r.Download)
-	r.addRoute(http.MethodGet, URLSDFSDelete, r.Delete)
-	r.addRoute(http.MethodGet, URLSDFSDownload, r.AddDownload)
+	r.addRoute(http.MethodPost, settings.URLUpload, r.Upload)
+	r.addRoute(http.MethodGet, settings.URLDownload, r.Download)
+	r.addRoute(http.MethodGet, settings.URLSDFSDelete, r.Delete)
+	r.addRoute(http.MethodGet, settings.URLSDFSDownload, r.AddDownload)
+	r.addRoute(http.MethodGet, settings.URLSDFSUpload, r.AddUpload)
+
+	r.addRoute(http.MethodGet, settings.URLDebugPrintHashstore, r.DebugPrintHS)
 	return r
+}
+
+func (r *Router) AddUpload(c *Context) {
+	id := c.Query("id")
+	r.mu.Lock()
+	_, ok := r.uploads[id]
+	if ok {
+		r.mu.Unlock()
+		log.Errorf("id conflict on add upload")
+		c.String(http.StatusInternalServerError, "failed to add upload, id already exists")
+		return
+	}
+	r.uploads[id] = struct{}{}
+	r.mu.Unlock()
+	c.String(http.StatusOK, "Success")
 }
 
 // Upload handles file upload requests
@@ -46,8 +65,12 @@ func (r *Router) Upload(c *Context) {
 	}
 
 	// report to master
-	HTTPUploadCallback(r.MasterAddr, id, hash)
-
+	err = HTTPUploadCallback(r.MasterAddr, id, hash, r.NodeAddr)
+	if err != nil {
+		log.Errorf("error calling back master: %q", err)
+		c.String(http.StatusInternalServerError, "Internal Server Error")
+		return
+	}
 	c.String(http.StatusAccepted, "Success")
 }
 
@@ -116,11 +139,12 @@ func (r *Router) AddDownload(c *Context) {
 	c.String(http.StatusOK, "%s", file)
 }
 
-func HTTPUploadCallback(masterAddr, id, hash string) error {
-	addr := masterAddr + URLUploadCallback
+func HTTPUploadCallback(masterAddr, id, hash, host string) error {
+	addr := masterAddr + settings.URLUploadCallback
 	request := H{
 		"id":   id,
 		"hash": hash,
+		"host": host,
 	}
 	b, err := json.Marshal(request)
 	if err != nil {
@@ -141,7 +165,11 @@ func HTTPUploadCallback(masterAddr, id, hash string) error {
 	}
 	url := string(result)
 	if resp.StatusCode != http.StatusOK {
-		return HTTPUploadCallback(url, id, hash)
+		return HTTPUploadCallback(url, id, hash, host)
 	}
 	return nil
+}
+
+func (r *Router) DebugPrintHS(c *Context) {
+	c.String(http.StatusOK, "%d", sdfs.Hs.Size)
 }

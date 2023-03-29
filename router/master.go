@@ -8,7 +8,7 @@ import (
 	"strconv"
 
 	"github.com/Lyianu/sdfs/log"
-	"github.com/Lyianu/sdfs/pkg/util"
+	"github.com/Lyianu/sdfs/pkg/settings"
 	"github.com/Lyianu/sdfs/raft"
 	"github.com/Lyianu/sdfs/sdfs"
 )
@@ -18,8 +18,8 @@ func NewMasterRouter() *Router {
 	r := &Router{
 		routes: make(map[string]HandleFunc),
 	}
-	r.addRoute("POST", URLSDFSHeartbeat, r.HeartbeatHandler)
-	r.addRoute("GET", URLSDFSDownload, r.MasterDownload)
+	r.addRoute("POST", settings.URLSDFSHeartbeat, r.HeartbeatHandler)
+	r.addRoute("GET", settings.URLSDFSDownload, r.MasterDownload)
 	return r
 }
 
@@ -38,7 +38,8 @@ func (r *Router) MasterDownload(c *Context) {
 	}
 	hash := f.Checksum
 	// TODO: Load Balance
-	host := f.Host[0]
+	host := raft.Raft.NodeAddr(f.Host[0])
+
 	url, err := HTTPGetFileDownloadAddress(host, hash, sdfs.ParseFileName(path))
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Internal Server Error: %q", err)
@@ -53,20 +54,28 @@ func (r *Router) MasterDownload(c *Context) {
 // TODO: with upload spikes Node server could be "penetrated"
 // maintain 2 Pqueues to split "busy" servers and "idle" servers to fix
 func (r *Router) MasterRequestUpload(c *Context) {
-	uploadID := util.RandomString(16)
 	path := c.Query("path")
 	if path == "" {
 		c.String(http.StatusBadRequest, "Bad Request")
 		return
 	}
-	
+	id, node, err := raft.Raft.UploadMngr.AddUpload(path)
+	if err != nil {
+		log.Errorf("reqeust upload error: %q", err)
+		c.String(http.StatusInternalServerError, "Internal Server Error")
+		return
+	}
+	c.JSON(http.StatusOK, H{
+		"id":   id,
+		"node": node,
+	})
 }
 
 // HTTP API, could be refactored to use RPC in the future
 // HTTPGetFileDownloadAddress contacts Node server so that requested file will
 // be exposed, then it returns the URL of the requested file
 func HTTPGetFileDownloadAddress(hostname, fileHash, fileName string) (string, error) {
-	URL := fmt.Sprintf("%s%s?hash=%s&name=%s", hostname, URLSDFSDownload, fileHash, fileName)
+	URL := fmt.Sprintf("%s%s?hash=%s&name=%s", hostname, settings.URLSDFSDownload, fileHash, fileName)
 	resp, err := http.Get(URL)
 	if err != nil {
 		return "", err
@@ -76,7 +85,7 @@ func HTTPGetFileDownloadAddress(hostname, fileHash, fileName string) (string, er
 	if err != nil {
 		return "", err
 	}
-	resultURL := fmt.Sprintf("%s%s?id=%s", hostname, URLDownload, string(b))
+	resultURL := fmt.Sprintf("%s%s?id=%s", hostname, settings.URLDownload, string(b))
 	return resultURL, err
 }
 
@@ -92,6 +101,7 @@ func HTTPUploadCallbackServer(c *Context) {
 	request := H{
 		"id":   "",
 		"hash": "",
+		"host": "",
 	}
 	b, err := io.ReadAll(c.req.Body)
 	if err != nil {
@@ -106,8 +116,12 @@ func HTTPUploadCallbackServer(c *Context) {
 		c.String(http.StatusBadRequest, "Bad Request: %q", err)
 		return
 	}
-	// TODO: mark upload as finished, add file to the SDFS.FS
-
+	err = raft.Raft.UploadMngr.FinishUpload(request["id"].(string))
+	if err != nil {
+		log.Errorf("callback error uploadmanager: %q", err)
+		c.String(http.StatusInternalServerError, "Internal Server Error")
+		return
+	}
 	c.String(http.StatusAccepted, "Success")
 }
 

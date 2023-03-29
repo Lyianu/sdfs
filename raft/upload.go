@@ -2,9 +2,13 @@ package raft
 
 import (
 	"errors"
+	"fmt"
+	"net/http"
 	"sync"
 
+	"github.com/Lyianu/sdfs/log"
 	"github.com/Lyianu/sdfs/pkg/pqueue"
+	"github.com/Lyianu/sdfs/pkg/settings"
 	"github.com/Lyianu/sdfs/pkg/util"
 	"github.com/Lyianu/sdfs/sdfs"
 )
@@ -62,6 +66,18 @@ func (u *uploadManager) AddUpload(path string) (id, node string, err error) {
 	}
 	u.uploads[rnd] = up
 	u.pending[path] = pendingKey{}
+
+	url := fmt.Sprintf("%s%s/%s?id=%s", settings.URLSDFSScheme, n.Addr, settings.URLSDFSUpload, rnd)
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Errorf("add upload error: %q", err)
+		return "", "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		log.Errorf("add upload error, node resp: %d, expected: %d", resp.StatusCode, http.StatusOK)
+		return "", "", errors.New("failed to add upload, node resp not ok")
+	}
 	return rnd, n.Addr, nil
 }
 

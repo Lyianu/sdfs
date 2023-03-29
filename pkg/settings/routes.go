@@ -1,4 +1,4 @@
-package router
+package settings
 
 const (
 	// path for client to download
@@ -16,6 +16,8 @@ const (
 
 	URLSDFSWrite = "/api/sdfs/write"
 	URLWrite     = "/api/write"
+
+	URLDebugPrintHashstore = "/api/debug/prinths"
 
 	URLUploadCallback = "/api/callback/upload"
 
