@@ -92,7 +92,7 @@ func (f *FS) AddFile(path string, hash string) (*File, error) {
 		})
 		dir.Files[fname] = file
 		file.SemaphoreReplica++
-		file.mu.Unlock()
+		//file.mu.Unlock()
 		f.mu.Unlock()
 
 		return file, nil

@@ -2,6 +2,7 @@ package sdfs
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"io"
 	"os"
@@ -67,7 +68,7 @@ func (h *HashStore) Add(r io.Reader) (string, error) {
 	tReader := io.TeeReader(r, f)
 	hash := sha256.New()
 	size, err := io.Copy(hash, tReader)
-	sum := string(hash.Sum(nil))
+	sum := base64.StdEncoding.EncodeToString(hash.Sum(nil))
 	if err != nil {
 		os.Remove(tmpName)
 		return "", err
@@ -78,6 +79,7 @@ func (h *HashStore) Add(r io.Reader) (string, error) {
 		os.Remove(tmpName)
 		return "", errors.New("file with same SHA256 checksum exists")
 	}
+
 	n := settings.DataPathPrefix + sum
 	if err = os.Rename(tmpName, n); err != nil {
 		return "", err

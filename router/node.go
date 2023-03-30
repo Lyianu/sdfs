@@ -56,6 +56,7 @@ func (r *Router) Upload(c *Context) {
 	}
 	hash, err := sdfs.Hs.Add(c.req.Body)
 	if err != nil {
+		log.Errorf("file upload: sdfs error: %q", err)
 		c.String(http.StatusBadRequest, "Bad Request: failed to read body")
 		return
 	}
