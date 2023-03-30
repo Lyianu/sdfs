@@ -41,6 +41,7 @@ func (c *Context) SetContentType(cType string) string {
 func (c *Context) String(code int, message string, a ...interface{}) error {
 	c.StatusCode(code)
 	c.SetContentType("text/plain")
+	c.w.WriteHeader(c.status)
 	_, err := fmt.Fprintf(c.w, message, a...)
 	return err
 }
@@ -48,6 +49,7 @@ func (c *Context) String(code int, message string, a ...interface{}) error {
 func (c *Context) JSON(code int, h H) error {
 	c.StatusCode(code)
 	c.SetContentType("application/JSON")
+	c.w.WriteHeader(c.status)
 	encoder := json.NewEncoder(c.w)
 	err := encoder.Encode(h)
 	if err != nil {
