@@ -22,6 +22,8 @@ func NewMasterRouter() *Router {
 	r.addRoute("GET", settings.URLSDFSDownload, r.MasterDownload)
 	r.addRoute("GET", settings.URLSDFSUpload, r.MasterRequestUpload)
 	r.addRoute("POST", settings.URLUploadCallback, HTTPUploadCallbackServer)
+
+	r.addRoute("GET", settings.URLDebugPrintSDFS, r.DebugPrintFS)
 	return r
 }
 
@@ -163,4 +165,17 @@ func (r *Router) HeartbeatHandler(c *Context) {
 		return
 	}
 	c.String(http.StatusAccepted, "Success")
+}
+
+// DebugPrintFS prints SDFS structure, it could be slow when there are
+// many file/dirs
+func (r *Router) DebugPrintFS(c *Context) {
+	dir, err := sdfs.Fs.GetDir("/")
+	if err != nil {
+		log.Errorf("error printing FS, sdfs error: %q", err)
+		c.String(http.StatusInternalServerError, "ISE: error: %q", err)
+		return
+	}
+	s := dir.PrintDir()
+	c.String(http.StatusOK, s)
 }

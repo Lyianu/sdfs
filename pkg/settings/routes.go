@@ -18,6 +18,7 @@ const (
 	URLWrite     = "/api/write"
 
 	URLDebugPrintHashstore = "/api/debug/prinths"
+	URLDebugPrintSDFS      = "/api/debug/printfs"
 
 	URLUploadCallback = "/api/callback/upload"
 

@@ -6,9 +6,11 @@ import (
 	"errors"
 	"io"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 
+	"github.com/Lyianu/sdfs/log"
 	"github.com/Lyianu/sdfs/pkg/settings"
 	"github.com/Lyianu/sdfs/pkg/util"
 )
@@ -73,6 +75,9 @@ func (h *HashStore) Add(r io.Reader) (string, error) {
 		os.Remove(tmpName)
 		return "", err
 	}
+	log.Debugf("original hash: %s", sum)
+	sum = strings.Replace(sum, "/", "_", -1)
+	log.Debugf("proccessed hash: %s", sum)
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if _, ok := h.s[sum]; ok {

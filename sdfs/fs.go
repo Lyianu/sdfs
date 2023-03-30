@@ -1,8 +1,10 @@
 package sdfs
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"sync"
 )
@@ -265,4 +267,31 @@ func (f *FS) DeleteFile(path string) error {
 	}
 	file.SemaphoreReplica--
 	return nil
+}
+
+// PrintDir prints directory recursively, it could take a long time to finish
+func (d *Directory) PrintDir() string {
+	b := new(bytes.Buffer)
+	fmt.Fprintf(b, "[dir]%s\n", d.Name)
+	for k := range d.Files {
+		fmt.Fprintf(b, "%s\n", k)
+	}
+	for _, v := range d.SubDirs {
+		v.printSubDirs(1, b)
+	}
+	return b.String()
+}
+
+func (d *Directory) printSubDirs(depth int, w io.Writer) {
+	tab := ""
+	for i := 0; i < depth; i++ {
+		tab += "\t"
+	}
+	fmt.Fprintf(w, "%s[dir]%s\n", tab, d.Name)
+	for k := range d.Files {
+		fmt.Fprintf(w, "%s%s\n", tab, k)
+	}
+	for _, v := range d.SubDirs {
+		v.printSubDirs(depth+1, w)
+	}
 }
