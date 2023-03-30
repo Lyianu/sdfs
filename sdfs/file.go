@@ -48,3 +48,11 @@ func NewFile(name, checksum string, fileSize uint64, parent *Directory) *File {
 	f.Size = fileSize
 	return f
 }
+
+func (f *File) Lock() {
+	f.mu.Lock()
+}
+
+func (f *File) Unlock() {
+	f.mu.Unlock()
+}

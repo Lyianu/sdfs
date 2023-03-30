@@ -52,6 +52,52 @@ func (r *Router) MasterDownload(c *Context) {
 	c.String(http.StatusOK, url)
 }
 
+func (r *Router) MasterDelete(c *Context) {
+	path := c.Query("path")
+	if path == "" {
+		c.String(http.StatusBadRequest, "Bad Request: path not found")
+		return
+	}
+	f, err := sdfs.Fs.GetFile(path)
+	if err != nil {
+		log.Errorf("error handling file delete request, sdfs error: %q", err)
+		c.String(http.StatusInternalServerError, "Internal Server Error: sdfs error: %q", err)
+		return
+	}
+	f.Lock()
+	defer f.Unlock()
+	var failed []int32
+	for _, v := range f.Host {
+		h := raft.Raft.NodeAddr(v)
+		url := fmt.Sprintf("%s%s?hash=%s", settings.URLSDFSScheme, h, f.Checksum)
+		resp, err := http.Get(url)
+		if err != nil {
+			log.Errorf("error sending delete request to node: %q", err)
+			failed = append(failed, v)
+			continue
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			err = fmt.Errorf("err sending delete request to node: statusCode mismatch, expected: %d, get: %d", http.StatusOK, resp.StatusCode)
+			log.Errorf("%s", err)
+			failed = append(failed, v)
+		}
+	}
+	// TODO: swap fs delete and hs delete to restore when error occurs
+	if len(failed) == 0 {
+		err = sdfs.Fs.DeleteFile(path)
+		if err != nil {
+			log.Errorf("failed to delete %s: sdfs error: %q", path, err)
+			c.String(http.StatusInternalServerError, "Internal Server Error")
+			return
+		}
+		c.String(http.StatusOK, "Success")
+		return
+	}
+	f.Host = failed
+	c.String(http.StatusInternalServerError, "Internal Server Error")
+}
+
 // MasterRequestUpload is called when a client wants to upload a file to the
 // SDFS. It will contact the Node server and request a file upload
 // Node server with most spare space will be selected
