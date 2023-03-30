@@ -21,6 +21,7 @@ func NewMasterRouter() *Router {
 	r.addRoute("POST", settings.URLSDFSHeartbeat, r.HeartbeatHandler)
 	r.addRoute("GET", settings.URLSDFSDownload, r.MasterDownload)
 	r.addRoute("GET", settings.URLSDFSUpload, r.MasterRequestUpload)
+	r.addRoute("GET", settings.URLSDFSDelete, r.MasterDelete)
 	r.addRoute("POST", settings.URLUploadCallback, HTTPUploadCallbackServer)
 
 	r.addRoute("GET", settings.URLDebugPrintSDFS, r.DebugPrintFS)
@@ -65,11 +66,12 @@ func (r *Router) MasterDelete(c *Context) {
 		return
 	}
 	f.Lock()
-	defer f.Unlock()
 	var failed []int32
+	// TODO: use multiple goroutine
 	for _, v := range f.Host {
 		h := raft.Raft.NodeAddr(v)
-		url := fmt.Sprintf("%s%s?hash=%s", settings.URLSDFSScheme, h, f.Checksum)
+		url := fmt.Sprintf("%s%s%s?hash=%s", settings.URLSDFSScheme, h, settings.URLSDFSDelete, f.Checksum)
+		log.Infof("deleting URL: %s", url)
 		resp, err := http.Get(url)
 		if err != nil {
 			log.Errorf("error sending delete request to node: %q", err)
@@ -85,6 +87,7 @@ func (r *Router) MasterDelete(c *Context) {
 	}
 	// TODO: swap fs delete and hs delete to restore when error occurs
 	if len(failed) == 0 {
+		f.Unlock()
 		err = sdfs.Fs.DeleteFile(path)
 		if err != nil {
 			log.Errorf("failed to delete %s: sdfs error: %q", path, err)
@@ -95,6 +98,7 @@ func (r *Router) MasterDelete(c *Context) {
 		return
 	}
 	f.Host = failed
+	f.Unlock()
 	c.String(http.StatusInternalServerError, "Internal Server Error")
 }
 
@@ -167,7 +171,7 @@ func HTTPUploadCallbackServer(c *Context) {
 		c.String(http.StatusBadRequest, "Bad Request: %q", err)
 		return
 	}
-	err = raft.Raft.UploadMngr.FinishUpload(request["id"].(string))
+	err = raft.Raft.UploadMngr.FinishUpload(request["id"].(string), request["hash"].(string))
 	if err != nil {
 		log.Errorf("callback error uploadmanager: %q", err)
 		c.String(http.StatusInternalServerError, "Internal Server Error")

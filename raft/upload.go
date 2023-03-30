@@ -81,14 +81,14 @@ func (u *uploadManager) AddUpload(path string) (id, node string, err error) {
 	return rnd, n.Addr, nil
 }
 
-func (u *uploadManager) FinishUpload(id string) error {
+func (u *uploadManager) FinishUpload(id, hash string) error {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	up, ok := u.uploads[id]
 	if !ok {
 		return errors.New("upload not found")
 	}
-	sdfs.Fs.AddFile(up.Path, up.Hash)
+	sdfs.Fs.AddFile(up.Path, hash)
 	f, _ := sdfs.Fs.GetFile(up.Path)
 	f.Host = append(f.Host, u.svr.NodeID(up.Host))
 	delete(u.uploads, id)

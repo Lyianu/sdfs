@@ -243,18 +243,20 @@ func (f *FS) DeleteFile(path string) error {
 		return fmt.Errorf("File not available")
 	}
 	// if there is no other replicas, delete the file locally & logically
+	fn := ParseFileName(path)
+
+	dir, _ := f.GetDir(path[:len(path)-len(fn)-1])
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	dir, _ := f.GetDir(path)
 	if file.SemaphoreReplica == 1 {
 		// TODO: notify node to delete the file
 		// err := os.Remove(settings.DataPathPrefix + file.LocalPath)
-		delete(dir.Files, file.FSPath[0].FileName)
+		delete(dir.Files, fn)
 		delete(f.ChecksumDB, file.Checksum)
 		return err
 	}
 	// if there is a replica, delete the file logically and reduce SemaphoreReplica
-	delete(dir.Files, ParseFileName(path))
+	delete(dir.Files, fn)
 	for k, p := range file.Paths() {
 		if p == path {
 			file.FSPath = append(file.FSPath[:k], file.FSPath[k+1:]...)
