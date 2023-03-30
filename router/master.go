@@ -130,7 +130,7 @@ func (r *Router) MasterRequestUpload(c *Context) {
 // HTTPGetFileDownloadAddress contacts Node server so that requested file will
 // be exposed, then it returns the URL of the requested file
 func HTTPGetFileDownloadAddress(hostname, fileHash, fileName string) (string, error) {
-	URL := fmt.Sprintf("%s%s?hash=%s&name=%s", hostname, settings.URLSDFSDownload, fileHash, fileName)
+	URL := fmt.Sprintf("%s%s%s?hash=%s&name=%s", settings.URLSDFSScheme, hostname, settings.URLSDFSDownload, fileHash, fileName)
 	resp, err := http.Get(URL)
 	if err != nil {
 		return "", err
@@ -140,7 +140,7 @@ func HTTPGetFileDownloadAddress(hostname, fileHash, fileName string) (string, er
 	if err != nil {
 		return "", err
 	}
-	resultURL := fmt.Sprintf("%s%s?id=%s", hostname, settings.URLDownload, string(b))
+	resultURL := fmt.Sprintf("%s%s%s?id=%s", settings.URLSDFSScheme, hostname, settings.URLDownload, string(b))
 	return resultURL, err
 }
 

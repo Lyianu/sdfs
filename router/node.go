@@ -21,6 +21,7 @@ func NewRouter(master string, node string) *Router {
 		MasterAddr: master,
 		NodeAddr:   node,
 		uploads:    make(map[string]struct{}),
+		downloads:  make(map[string]*download),
 	}
 	r.addRoute(http.MethodPost, settings.URLUpload, r.Upload)
 	r.addRoute(http.MethodGet, settings.URLDownload, r.Download)

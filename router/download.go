@@ -49,6 +49,7 @@ func (r *Router) UpdateQueue() {
 // RequestDownload finds the desired file and add it to the downloads,
 // if succeed, it returns a ID for download
 func (r *Router) RequestDownload(hash, filename string) (string, error) {
+	r.UpdateQueue()
 	d, err := NewDownload(hash, filename)
 	if err != nil {
 		return "", err
