@@ -30,9 +30,12 @@ type HashStore struct {
 }
 
 type file struct {
-	Hash      string
-	OpenCount int32
-	Size      int64
+	Hash         string
+	OpenCount    int32
+	ReplicaCount int32
+	Size         int64
+
+	mu sync.Mutex
 }
 
 func (h *HashStore) GetSize() int64 {
@@ -80,9 +83,12 @@ func (h *HashStore) Add(r io.Reader) (string, error) {
 	log.Debugf("proccessed hash: %s", sum)
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if _, ok := h.s[sum]; ok {
+	if f, ok := h.s[sum]; ok {
 		os.Remove(tmpName)
-		return "", errors.New("file with same SHA256 checksum exists")
+		f.mu.Lock()
+		f.ReplicaCount++
+		f.mu.Unlock()
+		return sum, nil
 	}
 
 	n := settings.DataPathPrefix + sum
@@ -90,9 +96,10 @@ func (h *HashStore) Add(r io.Reader) (string, error) {
 		return "", err
 	}
 	h.s[sum] = &file{
-		Hash:      sum,
-		OpenCount: 0,
-		Size:      size,
+		Hash:         sum,
+		OpenCount:    0,
+		ReplicaCount: 1,
+		Size:         size,
 	}
 
 	atomic.AddInt64(&h.Size, size)
@@ -104,6 +111,12 @@ func (h *HashStore) Remove(hash string) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if f, ok := h.s[hash]; ok {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		if f.ReplicaCount > 1 {
+			f.ReplicaCount--
+			return nil
+		}
 		if f.OpenCount != 0 {
 			return errors.New("file is being accessed by other goroutine")
 		}

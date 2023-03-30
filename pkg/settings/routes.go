@@ -5,6 +5,8 @@ const (
 	URLDownload = "/api/download"
 	// path for client to request upload
 	URLUpload = "/api/upload"
+	// path for client to request delete
+	URLDelete = "/api/delete"
 	// path for sdfs master to request download
 	URLSDFSDownload = "/api/sdfs/download"
 	// path for sdfs master to request delete
