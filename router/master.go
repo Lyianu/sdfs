@@ -177,7 +177,7 @@ func HTTPUploadCallbackServer(c *Context) {
 		c.String(http.StatusInternalServerError, "Internal Server Error")
 		return
 	}
-	c.String(http.StatusAccepted, "Success")
+	c.String(http.StatusOK, "Success")
 }
 
 func (r *Router) HeartbeatHandler(c *Context) {
@@ -214,7 +214,7 @@ func (r *Router) HeartbeatHandler(c *Context) {
 		c.String(http.StatusTemporaryRedirect, addr)
 		return
 	}
-	c.String(http.StatusAccepted, "Success")
+	c.String(http.StatusOK, "Success")
 }
 
 // DebugPrintFS prints SDFS structure, it could be slow when there are

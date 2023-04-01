@@ -3,6 +3,7 @@ package router
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -167,10 +168,13 @@ func HTTPUploadCallback(masterAddr, id, hash, host string) error {
 		return err
 	}
 	url := string(result)
-	if resp.StatusCode != http.StatusOK {
-		log.Errorf("upload callback statuscode mismatch, get: %d, exoected: %d", resp.StatusCode, http.StatusOK)
+	if resp.StatusCode == http.StatusTemporaryRedirect {
 		return HTTPUploadCallback(url, id, hash, host)
+	} else if resp.StatusCode != http.StatusOK {
+		log.Errorf("upload callback statuscode mismatch, get: %d, expected: %d", resp.StatusCode, http.StatusOK)
+		return errors.New("upload callback statuscode mismatch")
 	}
+
 	return nil
 }
 
