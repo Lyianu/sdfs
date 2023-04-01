@@ -362,7 +362,7 @@ func (cm *ConsensusModule) leaderSendHeartbeats() {
 								}
 							}
 							if matchCount*2 > len(cm.peerIds)+1 {
-								cm.commitIndex = 1
+								cm.commitIndex = i
 							}
 						}
 						if cm.commitIndex != savedCommitIndex {

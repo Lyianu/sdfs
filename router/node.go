@@ -121,13 +121,40 @@ func (r *Router) Download(c *Context) {
 		c.String(http.StatusInternalServerError, "Internal Server Error: sdfs error: %q", err)
 		return
 	}
+	size := f.Size
+	ranges, err := c.ParseRange(size)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Internal Server Error: sdfs error: %q", err)
+		return
+	}
+	if len(ranges) == 0 {
+		defer atomic.AddInt32(&f.OpenCount, -1)
+		os_f, err := os.Open(settings.DataPathPrefix + f.Hash)
+		if err != nil {
+			c.String(http.StatusInternalServerError, "Internal Server Error: sdfs error: %q", err)
+			return
+		}
+		io.Copy(c.w, os_f)
+		return
+	}
+	c.SetHeader("Accept-Ranges", "bytes")
+	c.SetHeader("Content-Range", fmt.Sprintf("bytes %d-%d/%d", ranges[0].Start, ranges[0].End, size))
+	c.SetHeader("Content-Length", fmt.Sprintf("%d", ranges[0].End-ranges[0].Start+1))
+	c.StatusCode(http.StatusPartialContent)
 	defer atomic.AddInt32(&f.OpenCount, -1)
 	os_f, err := os.Open(settings.DataPathPrefix + f.Hash)
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Internal Server Error: sdfs error: %q", err)
 		return
 	}
-	io.Copy(c.w, os_f)
+	ra := ranges[0]
+	_, err = os_f.Seek(ra.Start, 0)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Internal Server Error: sdfs error: %q", err)
+		return
+	}
+
+	io.CopyN(c.w, os_f, ra.End-ra.Start+1)
 }
 
 // AddDownload
