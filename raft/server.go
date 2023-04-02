@@ -7,6 +7,7 @@ import (
 	"errors"
 	"math/rand"
 	"net"
+	"os"
 	"strings"
 
 	"github.com/Lyianu/sdfs/log"
@@ -35,6 +36,8 @@ type Server struct {
 	nodeAddr map[string]*Node
 
 	UploadMngr *uploadManager
+
+	logFile *os.File
 
 	// sdfs as raft client
 	FS *sdfs.FS
@@ -158,6 +161,18 @@ func NewServer(listen, connect, addr string) (*Server, error) {
 		return nil, errors.New("address not specified")
 	}
 	rdy := make(chan struct{})
+	f, err := os.OpenFile("raft.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		if os.IsNotExist(err) {
+			f, err = os.Create("raft.log")
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			log.Errorf("failed to open raft log file, error: %q", err)
+			return nil, err
+		}
+	}
 	s := &Server{
 		cm:         NewConsensusModule(rdy),
 		grpcServer: grpc.NewServer(),
@@ -168,6 +183,7 @@ func NewServer(listen, connect, addr string) (*Server, error) {
 		nodeAddr:   make(map[string]*Node),
 		FS:         sdfs.NewFS(),
 		UploadMngr: newUploadManager(),
+		logFile:    f,
 	}
 	s.UploadMngr.svr = s
 	s.cm.server = s
