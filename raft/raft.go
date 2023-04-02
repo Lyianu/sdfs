@@ -2,6 +2,7 @@ package raft
 
 import (
 	"context"
+	"encoding/json"
 	"math/rand"
 	"os"
 	"sync"
@@ -132,6 +133,13 @@ func (cm *ConsensusModule) Submit(cmd interface{}) (res bool, id int32) {
 	if cm.state == LEADER {
 		log.Debugf("log=%v", cm.log)
 		cm.log = append(cm.log, LogEntry{Command: cmd, Term: cm.currentTerm})
+		e := Serialize(LogEntry{Command: cmd, Term: cm.currentTerm})
+		b, err := json.Marshal(e)
+		if err != nil {
+			log.Errorf("json marshal error: %v", err)
+			return false, cm.id
+		}
+		cm.server.logFile.Write(b)
 		return true, cm.id
 	}
 	log.Debugf("cm is not leader, leader ID: %d", cm.currentLeader)
@@ -420,6 +428,11 @@ func (cm *ConsensusModule) AppendEntries(req *AppendEntriesRequest) (*AppendEntr
 		}
 		f := func(e []*Entry) (r []LogEntry) {
 			for _, k := range e {
+				b, err := json.Marshal(k)
+				if err != nil {
+					panic(err)
+				}
+				cm.server.logFile.Write(b)
 				l := LogEntry{
 					Term:    k.Term,
 					Command: Execute(k),
