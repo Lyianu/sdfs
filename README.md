@@ -1,5 +1,7 @@
 # Simple Distributed File System
 
+SDFS is a distributed file system based on Raft consensus algorithm.
+
 ## Quickstart
 
 ### Compile from source
@@ -35,6 +37,7 @@ go build -o sdfs_node cmd/node/main.go
 ```bash
 ./sdfs_node -a node1.example.com -m svr2.example.com -p :8080
 # this will start a node server at node1.example.com:8080, it will connect to master cluster via svr2.example.com, port 8080 will be used for HTTP API
+
 # Usage of ./sdfs_node:
 #   -a string
 #         node address

@@ -4,7 +4,9 @@ package raft
 
 import (
 	"context"
+	"encoding/gob"
 	"errors"
+	"io"
 	"math/rand"
 	"net"
 	"os"
@@ -188,6 +190,8 @@ func NewServer(listen, connect, addr string) (*Server, error) {
 	s.UploadMngr.svr = s
 	s.cm.server = s
 	Raft = s
+	// temporarily disable log due to lack of the operation of remove old master ID when master restarts
+	// s.LoadLog()
 
 	lis, err := net.Listen("tcp", listen)
 	s.grpcServer.RegisterService(&Raft_ServiceDesc, s)
@@ -274,4 +278,22 @@ func (s *Server) RegisterMaster(ctx context.Context, req *RegisterMasterRequest)
 	log.Infof("Master %q connected, ID: %d\n", req.MasterAddr, new_id)
 	log.Infof("Master %d raft client: %v\n", new_id, s.peers[new_id])
 	return resp, nil
+}
+
+func (s *Server) LoadLog() error {
+	f := s.logFile
+	dec := gob.NewDecoder(f)
+	e := &Entry{}
+
+	for err := dec.Decode(e); err != io.EOF; err = dec.Decode(e) {
+		if err != nil {
+			return err
+		}
+		l := LogEntry{
+			Term:    e.Term,
+			Command: Execute(e),
+		}
+		s.cm.log = append(s.cm.log, l)
+	}
+	return nil
 }
