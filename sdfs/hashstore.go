@@ -107,6 +107,17 @@ func (h *HashStore) Add(r io.Reader) (string, error) {
 	return sum, nil
 }
 
+func (h *HashStore) AddLocal(checksum string, size int64) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.s[checksum] = &file{
+		Hash:         checksum,
+		OpenCount:    0,
+		ReplicaCount: 1,
+		Size:         size,
+	}
+}
+
 func (h *HashStore) Remove(hash string) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()

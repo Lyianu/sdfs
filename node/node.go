@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
+	"path/filepath"
 	"time"
 
 	"github.com/Lyianu/sdfs/log"
@@ -40,6 +42,7 @@ func NewNode(port string, masterAddr string, addr string) *Node {
 		HS:   HS,
 		Addr: addr,
 	}
+	n.LoadHS()
 	return n
 }
 
@@ -117,4 +120,19 @@ func (n *Node) StartHeartbeat() {
 			log.Errorf("failed to send heartbeat: %s", err)
 		}
 	}
+}
+
+func (n *Node) LoadHS() {
+	filepath.WalkDir(settings.DataPathPrefix, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		i, err := d.Info()
+		if err != nil {
+			return err
+		}
+		log.Debugf("load file: %s", d.Name())
+		n.HS.AddLocal(d.Name(), i.Size())
+		return nil
+	})
 }
