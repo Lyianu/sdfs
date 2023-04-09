@@ -37,7 +37,7 @@ type Server struct {
 	nodes    map[int32]*Node
 	nodeAddr map[string]*Node
 
-	UploadMngr *uploadManager
+	UploadMngr  *uploadManager
 	ReplicaMngr *replicaManager
 
 	logFile *os.File
@@ -108,7 +108,7 @@ func (s *Server) NodeID(addr string) int32 {
 }
 
 // UpdateNode updates node's info
-func (s *Server) UpdateNode(addr string, cpu, memory float64, size, disk int64) (error, string) {
+func (s *Server) UpdateNode(addr string, cpu, memory float64, size, disk int64) (string, error) {
 	s.cm.mu.Lock()
 	if _, ok := s.nodeAddr[addr]; ok {
 		s.nodeAddr[addr].CpuUsage = cpu
@@ -116,7 +116,7 @@ func (s *Server) UpdateNode(addr string, cpu, memory float64, size, disk int64) 
 		s.nodeAddr[addr].Size = size
 		s.nodeAddr[addr].Disk = disk
 		s.cm.mu.Unlock()
-		return nil, ""
+		return "", nil
 	}
 
 	ok := false
@@ -145,12 +145,12 @@ func (s *Server) UpdateNode(addr string, cpu, memory float64, size, disk int64) 
 		NodeAddr: addr,
 	})
 	if !res {
-		return errors.New("failed to add node to cluster"), Raft.PeerAddr(id)
+		return Raft.PeerAddr(id), errors.New("failed to add node to cluster")
 	}
 	log.Infof("add node to the cluster: %s", n.Addr)
 	// add node to priority queue for later use
 	s.UploadMngr.uploadNodes.Push(n)
-	return nil, ""
+	return "", nil
 }
 
 // listen specifies the address at which server listens, connect specifies the

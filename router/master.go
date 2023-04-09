@@ -213,7 +213,7 @@ func (r *Router) HeartbeatHandler(c *Context) {
 		return
 	}
 	log.Debugf("heartbeat received from %s", request.Host)
-	err, addr := raft.Raft.UpdateNode(request.Host, request.CPU, request.Memory, request.Size, request.Disk)
+	addr, err := raft.Raft.UpdateNode(request.Host, request.CPU, request.Memory, request.Size, request.Disk)
 	if err != nil {
 		log.Errorf("heartbeat sent to non leader master: %q", err)
 		c.String(http.StatusTemporaryRedirect, addr)
