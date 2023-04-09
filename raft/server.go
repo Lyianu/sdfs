@@ -38,6 +38,7 @@ type Server struct {
 	nodeAddr map[string]*Node
 
 	UploadMngr *uploadManager
+	ReplicaMngr *replicaManager
 
 	logFile *os.File
 

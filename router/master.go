@@ -180,6 +180,11 @@ func HTTPUploadCallbackServer(c *Context) {
 	c.String(http.StatusOK, "Success")
 }
 
+// endpoint for node to call after replication complete
+func (r *Router) CreateReplicaCallback(c *Context) {
+
+}
+
 func (r *Router) HeartbeatHandler(c *Context) {
 	if raft.Raft.CM().State() != raft.LEADER {
 		leader := raft.Raft.PeerAddr(raft.Raft.CM().CurrentLeader())

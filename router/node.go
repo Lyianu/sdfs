@@ -170,6 +170,11 @@ func (r *Router) AddDownload(c *Context) {
 	c.String(http.StatusOK, "%s", file)
 }
 
+// CreateReplica downloads file from other node to replicate file in local hashstore
+func (r *Router) CreateReplica(c *Context) {
+	
+}
+
 func HTTPUploadCallback(masterAddr, id, hash, host string) error {
 	addr := settings.URLSDFSScheme + masterAddr + settings.URLUploadCallback
 	request := H{
