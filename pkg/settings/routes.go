@@ -16,11 +16,16 @@ const (
 	// path for sdfs node to send heartbeat to
 	URLSDFSHeartbeat = "/api/sdfs/heartbeat"
 
+	// not implemented
 	URLSDFSWrite = "/api/sdfs/write"
 	URLWrite     = "/api/write"
 
 	URLDebugPrintHashstore = "/api/debug/prinths"
 	URLDebugPrintSDFS      = "/api/debug/printfs"
+
+	// path for sdfs master to request replica creation and node to callback
+	URLSDFSReplicaRequest  = "/api/sdfs/replica/request"
+	URLSDFSReplicaCallback = "/api/sdfs/replica/callback"
 
 	URLUploadCallback = "/api/callback/upload"
 

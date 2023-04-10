@@ -170,9 +170,57 @@ func (r *Router) AddDownload(c *Context) {
 	c.String(http.StatusOK, "%s", file)
 }
 
-// CreateReplica downloads file from other node to replicate file in local hashstore
+// CreateReplica downloads file from other node to replicate file in
+// local hashstore this is now a synchronized operation, could be made
+// asynchronous in the future
 func (r *Router) CreateReplica(c *Context) {
-	
+	request := H{
+		"link": "",
+		"hash": "",
+	}
+	b, err := io.ReadAll(c.req.Body)
+	if err != nil {
+		log.Errorf("error opening request body: %q", err)
+		c.String(http.StatusBadRequest, "Bad Request: %q", err)
+		return
+	}
+	defer c.req.Body.Close()
+	err = json.Unmarshal(b, &request)
+	if err != nil {
+		log.Errorf("error parsing request: %q", err)
+		c.String(http.StatusBadRequest, "Bad Request: %q", err)
+		return
+	}
+	c.String(http.StatusOK, "replica task added")
+	hash := DownloadFileFromLink(request["link"].(string))
+	if hash != request["hash"].(string) {
+		ReportReplicationToMaster(r.MasterAddr, hash, "FAILED")
+		return
+	}
+	ReportReplicationToMaster(r.MasterAddr, hash, "OK")
+}
+
+// TODO: handle error
+func ReportReplicationToMaster(masterAddr, hash, result string) {
+	addr := settings.URLSDFSScheme + masterAddr + settings.URLSDFSReplicaCallback
+	url := fmt.Sprintf("%s?hash=%s&result=%s", addr, hash, result)
+	http.Get(url)
+}
+
+// DownloadFileFromLink downloads file from link and add it to the hashstore
+func DownloadFileFromLink(link string) string {
+	resp, err := http.Get(link)
+	if err != nil {
+		log.Errorf("failed to get file, error: %q", err)
+		return ""
+	}
+	defer resp.Body.Close()
+	hash, err := sdfs.Hs.Add(resp.Body)
+	if err != nil {
+		log.Errorf("failed to add replica: %q", err)
+		return ""
+	}
+	return hash
 }
 
 func HTTPUploadCallback(masterAddr, id, hash, host string) error {

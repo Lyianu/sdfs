@@ -3,7 +3,9 @@ package raft
 import (
 	"time"
 
+	"github.com/Lyianu/sdfs/log"
 	"github.com/Lyianu/sdfs/pkg/queue"
+	"github.com/Lyianu/sdfs/router"
 )
 
 type replicaManager struct {
@@ -26,7 +28,7 @@ type replicaTask struct {
 	TTL int
 }
 
-func NewReplicaMngr() *replicaManager {
+func newReplicaMngr() *replicaManager {
 	return &replicaManager{
 		q: queue.NewQueue(),
 		// 10 concurrent execution
@@ -66,4 +68,13 @@ func (r *replicaManager) AddTask(task replicaTask) {
 func (r *replicaManager) ExecuteTask(task replicaTask) {
 
 	<-r.tickets
+}
+
+func RequestReplica(task replicaTask) error {
+	addr, err := router.HTTPGetFileDownloadAddress(task.Host, task.Hash, "a")
+	if err != nil {
+		log.Errorf("failed to create download for replication task")
+		return err
+	}
+	
 }

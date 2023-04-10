@@ -177,16 +177,17 @@ func NewServer(listen, connect, addr string) (*Server, error) {
 		}
 	}
 	s := &Server{
-		cm:         NewConsensusModule(rdy),
-		grpcServer: grpc.NewServer(),
-		addr:       addr,
-		peers:      make(map[int32]RaftClient),
-		peerAddr:   make(map[int32]string),
-		nodes:      make(map[int32]*Node),
-		nodeAddr:   make(map[string]*Node),
-		FS:         sdfs.NewFS(),
-		UploadMngr: newUploadManager(),
-		logFile:    f,
+		cm:          NewConsensusModule(rdy),
+		grpcServer:  grpc.NewServer(),
+		addr:        addr,
+		peers:       make(map[int32]RaftClient),
+		peerAddr:    make(map[int32]string),
+		nodes:       make(map[int32]*Node),
+		nodeAddr:    make(map[string]*Node),
+		FS:          sdfs.NewFS(),
+		UploadMngr:  newUploadManager(),
+		ReplicaMngr: newReplicaMngr(),
+		logFile:     f,
 	}
 	s.UploadMngr.svr = s
 	s.cm.server = s
