@@ -74,7 +74,17 @@ func (r *replicaManager) AddTask(task replicaTask) {
 // ExecuteTask executes replication task, once failed,
 // it pushes the task back to the queue
 func (r *replicaManager) ExecuteTask(task replicaTask) {
-
+	err := RequestReplica(task)
+	if err != nil {
+		// this will also log TTL
+		log.Errorf("failed to request replica for task: %+v", task)
+		task.TTL--
+		if task.TTL != 0 {
+			r.q.Push(task)
+		} else {
+			log.Errorf("remove 0TTL task from queue: %+v", task)
+		}
+	}
 	<-r.tickets
 }
 
