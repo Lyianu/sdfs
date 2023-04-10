@@ -1,15 +1,22 @@
 package raft
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"sync"
 	"time"
 
 	"github.com/Lyianu/sdfs/log"
 	"github.com/Lyianu/sdfs/pkg/queue"
+	"github.com/Lyianu/sdfs/pkg/settings"
 	"github.com/Lyianu/sdfs/router"
 )
 
 type replicaManager struct {
-	q *queue.Queue
+	q       *queue.Queue
+	pending sync.Map
 
 	tickets chan struct{}
 	stop    <-chan struct{}
@@ -33,6 +40,7 @@ func newReplicaMngr() *replicaManager {
 		q: queue.NewQueue(),
 		// 10 concurrent execution
 		tickets: make(chan struct{}, 10),
+		pending: sync.Map{},
 		stop:    make(<-chan struct{}),
 	}
 }
@@ -70,11 +78,37 @@ func (r *replicaManager) ExecuteTask(task replicaTask) {
 	<-r.tickets
 }
 
+// RequestReplica requests nodes to create replica
 func RequestReplica(task replicaTask) error {
 	addr, err := router.HTTPGetFileDownloadAddress(task.Host, task.Hash, "a")
 	if err != nil {
 		log.Errorf("failed to create download for replication task")
 		return err
 	}
-	
+	request := router.H{
+		"link": addr,
+		"hash": task.Hash,
+	}
+	var err_result error
+	for _, v := range task.ReplicatedNodes {
+		url := fmt.Sprintf("%s%s%s", settings.URLSDFSScheme, v, settings.URLSDFSReplicaRequest)
+		b, _ := json.Marshal(request)
+		r := bytes.NewReader(b)
+		resp, err := http.Post(url, "application/json", r)
+
+		if err != nil {
+			log.Errorf("failed to request replication task: addr: %s, err: %q", addr, err)
+			task.FailedNodes = append(task.FailedNodes, v)
+			continue
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			log.Errorf("error requesting replication task: addr: %s, err: %q", addr, err)
+			err_result = fmt.Errorf("error requesting replication task: status code mismatch: expected: %d, have: %d", http.StatusOK, resp.StatusCode)
+			task.FailedNodes = append(task.FailedNodes, v)
+			continue
+		}
+		log.Debugf("request replica: success, task: %+v", task)
+	}
+	return err_result
 }
