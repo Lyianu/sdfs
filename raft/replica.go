@@ -85,6 +85,7 @@ func (r *replicaManager) ExecuteTask(task replicaTask) {
 			log.Errorf("remove 0TTL task from queue: %+v", task)
 		}
 	}
+	r.pending.Store(task, struct{}{})
 	<-r.tickets
 }
 
@@ -100,6 +101,7 @@ func RequestReplica(task replicaTask) error {
 		"hash": task.Hash,
 	}
 	var err_result error
+	// TODO: remove successful requests from task.ReplicatedNodes
 	for _, v := range task.ReplicatedNodes {
 		url := fmt.Sprintf("%s%s%s", settings.URLSDFSScheme, v, settings.URLSDFSReplicaRequest)
 		b, _ := json.Marshal(request)
